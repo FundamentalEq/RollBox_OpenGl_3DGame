@@ -80,7 +80,7 @@ COLOR score = {117/255.0,78/255.0,40/255.0};
 
 struct GameObject
 {
-    glm::vec3 location,AxisOfRotation , direction,up, gravity , speed ;
+    glm::vec3 location,AxisOfRotation,scale, direction,up, gravity , speed ;
     float length,height,width,theta,radius ;
     bool fixed,isRotating ;
     int ID,color;
@@ -91,9 +91,14 @@ struct GameObject
         length = height = width = theta = radius = 0 ;
         ID = color = 0 ;
         location = AxisOfRotation = up = direction = gravity = speed = glm::vec3(0,0,0) ;
+        scale = glm::vec3(1,1,1) ;
         object = NULL ;
     }
 } ;
+
+// Global Variables
+vector<GameObject> Blocks ;
+
 
 int do_rot, floor_rel;;
 GLuint programID;
@@ -344,6 +349,9 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
     case 'e':
 	rectangle_rotation += 1;
 	break;
+    case 'x' :
+    Blocks[0].AxisOfRotation = glm::vec3(1,0,0) ;
+    break ;
     case 'j':
 	floor_pos.x -= 0.1;
 	break;
@@ -411,16 +419,16 @@ void reshapeWindow (GLFWwindow* window, int width, int height)
 VAO *rectangle, *cam, *floor_vao;
 
 // Creates the rectangle object used in this sample code
-VAO* createCube (int a)
+VAO* createCube (void)
 {
     // GL3 accepts only Triangles. Quads are not supported
-    GLfloat vertex_buffer_data[] = {
-    -1.0f,-1.0f,-1.0f, // triangle 1 : begin
-    -1.0f,-1.0f, 1.0f,
-    -1.0f, 1.0f, 1.0f, // triangle 1 : end
-    1.0f, 1.0f,-1.0f, // triangle 2 : begin
+    static const GLfloat vertex_buffer_data[] = {
     -1.0f,-1.0f,-1.0f,
-    -1.0f, 1.0f,-1.0f, // triangle 2 : end
+    -1.0f,-1.0f, 1.0f,
+    -1.0f, 1.0f, 1.0f,
+    1.0f, 1.0f,-1.0f,
+    -1.0f,-1.0f,-1.0f,
+    -1.0f, 1.0f,-1.0f,
     1.0f,-1.0f, 1.0f,
     -1.0f,-1.0f,-1.0f,
     1.0f,-1.0f,-1.0f,
@@ -451,9 +459,8 @@ VAO* createCube (int a)
     1.0f, 1.0f, 1.0f,
     -1.0f, 1.0f, 1.0f,
     1.0f,-1.0f, 1.0f
-};
+    };
     // scaling side to requirement
-    FN(i,sizeof(vertex_buffer_data)/sizeof(vertex_buffer_data[0])) vertex_buffer_data[i] *= a ;
     static const GLfloat color_buffer_data [] = {
 	1.0f, 1.0f, 0.0f,
 	1.0f, 1.0f, 0.0f,
@@ -534,7 +541,7 @@ void createFloor ()
 	0.65, 0.165, 0.165,
 	0.65, 0.165, 0.165,
 	0.65, 0.165, 0.165,
-	0.65, 0.165, 0.165,
+    	0.65, 0.165, 0.165,
 	0.65, 0.165, 0.165,
     };
 
@@ -558,58 +565,35 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
     glUseProgram(programID);
 
     // Eye - Location of camera. Don't change unless you are sure!!
-    glm::vec3 eye ( 5*cos(camera_rotation_angle*M_PI/180.0f), 0, 5*sin(camera_rotation_angle*M_PI/180.0f) );
+    glm::vec3 eye ( 10*cos(camera_rotation_angle*M_PI/180.0f), 0, 10*sin(camera_rotation_angle*M_PI/180.0f) );
     // Target - Where is the camera looking at.  Don't change unless you are sure!!
     glm::vec3 target (0, 0, 0);
     // Up - Up vector defines tilt of camera.  Don't change unless you are sure!!
     glm::vec3 up (0, 1, 0);
 
-    // Compute Camera matrix (view)
-    cout<<"dov is "<<doV<<endl ;
-    if(doV)
 	Matrices.view = glm::lookAt(eye, target, up); // Fixed camera for 2D (ortho) in XY plane
-    else
-	Matrices.view = glm::mat4(1.0f);
 
-    // Compute ViewProject matrix as view/camera might not be changed for this frame (basic scenario)
     glm::mat4 VP;
-    if (doP)
-	VP = Matrices.projection * Matrices.view;
-    else
-	VP = Matrices.view;
-
-    // Send our transformation to the currently bound shader, in the "MVP" uniform
-    // For each model you render, since the MVP will be different (at least the M part)
     glm::mat4 MVP;	// MVP = Projection * View * Model
 
-    // Load identity to model matrix
-    Matrices.model = glm::mat4(1.0f);
+	VP = Matrices.projection * Matrices.view;
 
-    glm::mat4 translateRectangle = glm::translate (rect_pos);        // glTranslatef
-    glm::mat4 rotateRectangle = glm::rotate((float)(rectangle_rotation*M_PI/180.0f), glm::vec3(0,0,1));
-    Matrices.model *= (translateRectangle * rotateRectangle);
-    if(floor_rel)
-	Matrices.model = Matrices.model * glm::translate(floor_pos);
-    if(doM)
-	MVP = VP * Matrices.model;
-    else
-	MVP = VP;
-    glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+    for(auto it:Blocks)
+    {
+        Matrices.model = glm::translate (it.location) * glm::scale(it.scale);
+        Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        MVP = VP * Matrices.model;
+        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        draw3DObject(it.object);
+    }
+    // glm::mat4 translateRectangle = glm::translate (rect_pos) * glm::scale(glm::vec3(0.5,1.5,1.5));        // glTranslatef
+    // glm::mat4 rotateRectangle = glm::rotate((float)(rectangle_rotation*M_PI/180.0f), glm::vec3(0,0,1));
+    // Matrices.model *= (translateRectangle * rotateRectangle);
+	// MVP = VP * Matrices.model;
+    // glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+    //
+    // draw3DObject(rectangle);
 
-    // draw3DObject draws the VAO given to it using current MVP matrix
-    draw3DObject(rectangle);
-
-    // Load identity to model matrix
-    Matrices.model = glm::mat4(1.0f);
-
-    glm::mat4 translateCam = glm::translate(eye);
-    glm::mat4 rotateCam = glm::rotate((float)(0), glm::vec3(0,1,0));
-    Matrices.model *= (translateCam * rotateCam);
-    MVP = VP * Matrices.model;
-    glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
-
-    // draw3DObject draws the VAO given to it using current MVP matrix
-    draw3DObject(cam);
 
     Matrices.model = glm::translate(floor_pos);
     MVP = VP * Matrices.model;
@@ -619,7 +603,19 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
     draw3DObject(floor_vao);
 
 }
-
+/************************
+    BLOCKS
+*************************/
+void CreateBlocks(void)
+{
+    GameObject temp ;
+    temp.height = temp.width = temp.length = 2 ;
+    temp.scale = glm::vec3(temp.height,temp.width,temp.length) ;
+    temp.object = createCube() ;
+    temp.AxisOfRotation = glm::vec3(0,0,1) ;
+    temp.location = glm::vec3(0,0,0) ;
+    Blocks.pb(temp) ;
+}
 /* Initialise glfw window, I/O callbacks and the renderer to use */
 /* Nothing to Edit here */
 GLFWwindow* initGLFW (int width, int height){
@@ -661,7 +657,8 @@ void initGL (GLFWwindow* window, int width, int height)
 {
     /* Objects should be created before any other gl function and shaders */
     // Create the models
-    rectangle = createCube(1.5) ;
+    // rectangle = createCube() ;
+    CreateBlocks() ;
     createCam();
     createFloor();
 
@@ -713,13 +710,7 @@ int main (int argc, char** argv)
 	if(camera_rotation_angle > 720)
 	    camera_rotation_angle -= 720;
 	last_update_time = current_time;
-    draw(window, 0, 0, 0.5, 0.5, 1, 1, 1);
-	// draw(window, 0.5, 0.5, 0.5, 0.5, 1, 1, 0);
-	// draw(window, 0.5, 0, 0.5, 0.5, 0, 1, 1);
-	// draw(window, 0, 0.5, 0.5, 0.5, 1, 0, 1);
-	// draw(window, 0.5, 0.5, 0.5, 0.5, 0, 1, 1);
-
-        // Swap Frame Buffer in double buffering
+    draw(window,0,0,1,1, 1, 1, 1);
         glfwSwapBuffers(window);
 
         // Poll for Keyboard and mouse events

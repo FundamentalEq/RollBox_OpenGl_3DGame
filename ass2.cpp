@@ -543,14 +543,14 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 
 	VP = Matrices.projection * Matrices.view;
 
-    for(auto it:Blocks)
-    {
-        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
-        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
-        MVP = VP * Matrices.model;
-        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
-        draw3DObject(it.object);
-    }
+    // for(auto it:Blocks)
+    // {
+    //     Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+    //     // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+    //     MVP = VP * Matrices.model;
+    //     glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+    //     draw3DObject(it.object);
+    // }
 
     for(auto it:Floor)
     {
@@ -615,8 +615,17 @@ void createFloor(void)
     temp.scale = glm::vec3(temp.width,temp.length,temp.height) ;
     temp.object = createCube() ;
     temp.AxisOfRotation = glm::vec3(0,0,1) ;
-    temp.location = glm::vec3(0,3,3) ;
-    Floor.pb(temp) ;
+    temp.location = glm::vec3(-3,-9,-3) ;
+    FN(x,4)
+    {
+        FN(y,10)
+        {
+            Floor.pb(temp) ;
+            temp.location.y += temp.length ;
+        }
+        temp.location.y = -9 ;
+        temp.location.x += temp.width ;
+    }
 }
 /* Initialise glfw window, I/O callbacks and the renderer to use */
 /* Nothing to Edit here */

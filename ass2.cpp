@@ -82,6 +82,7 @@ COLOR score = {117/255.0,78/255.0,40/255.0};
 // Camera
 float CameraRotateAngle  = 0.5/M_PI ;
 float CameraSphereRadius = 10 ;
+
 struct GameObject
 {
     glm::vec3 location,AxisOfRotation,scale, direction,up, gravity , speed ;
@@ -103,6 +104,7 @@ struct GameObject
 // Global Variables
 vector<GameObject> Blocks ;
 GameObject Camera ;
+vector<GameObject> Floor ;
 
 // Function Declarations
 void InitCamera(void) ;
@@ -435,42 +437,45 @@ VAO* createCube (void)
 {
     // GL3 accepts only Triangles. Quads are not supported
     static const GLfloat vertex_buffer_data[] = {
-    -1.0f,-1.0f,-1.0f,
-    -1.0f,-1.0f, 1.0f,
-    -1.0f, 1.0f, 1.0f,
-    1.0f, 1.0f,-1.0f,
-    -1.0f,-1.0f,-1.0f,
-    -1.0f, 1.0f,-1.0f,
-    1.0f,-1.0f, 1.0f,
-    -1.0f,-1.0f,-1.0f,
-    1.0f,-1.0f,-1.0f,
-    1.0f, 1.0f,-1.0f,
-    1.0f,-1.0f,-1.0f,
-    -1.0f,-1.0f,-1.0f,
-    -1.0f,-1.0f,-1.0f,
-    -1.0f, 1.0f, 1.0f,
-    -1.0f, 1.0f,-1.0f,
-    1.0f,-1.0f, 1.0f,
-    -1.0f,-1.0f, 1.0f,
-    -1.0f,-1.0f,-1.0f,
-    -1.0f, 1.0f, 1.0f,
-    -1.0f,-1.0f, 1.0f,
-    1.0f,-1.0f, 1.0f,
-    1.0f, 1.0f, 1.0f,
-    1.0f,-1.0f,-1.0f,
-    1.0f, 1.0f,-1.0f,
-    1.0f,-1.0f,-1.0f,
-    1.0f, 1.0f, 1.0f,
-    1.0f,-1.0f, 1.0f,
-    1.0f, 1.0f, 1.0f,
-    1.0f, 1.0f,-1.0f,
-    -1.0f, 1.0f,-1.0f,
-    1.0f, 1.0f, 1.0f,
-    -1.0f, 1.0f,-1.0f,
-    -1.0f, 1.0f, 1.0f,
-    1.0f, 1.0f, 1.0f,
-    -1.0f, 1.0f, 1.0f,
-    1.0f,-1.0f, 1.0f
+        -0.5, 0.5, 0.5,
+    	-0.5, -0.5, 0.5,
+    	0.5, -0.5, 0.5,
+    	-0.5, 0.5, 0.5,
+    	0.5, -0.5, 0.5,
+    	0.5, 0.5, 0.5,
+    	0.5, 0.5, 0.5,
+    	0.5, -0.5, 0.5,
+    	0.5, -0.5, -0.5,
+    	0.5, 0.5, 0.5,
+    	0.5, -0.5, -0.5,
+    	0.5, 0.5, -0.5,
+    	0.5, 0.5, -0.5,
+    	0.5, -0.5, -0.5,
+    	-0.5, -0.5, -0.5,
+    	0.5, 0.5, -0.5,
+    	-0.5, -0.5, -0.5,
+    	-0.5, 0.5, -0.5,
+    	-0.5, 0.5, -0.5,
+    	-0.5, -0.5, -0.5,
+    	-0.5, -0.5, 0.5,
+    	-0.5, 0.5, -0.5,
+    	-0.5, -0.5, 0.5,
+    	-0.5, 0.5, 0.5,
+    	-0.5, 0.5, -0.5,
+    	-0.5, 0.5, 0.5,
+    	0.5, 0.5, 0.5,
+    	-0.5, 0.5, -0.5,
+    	0.5, 0.5, 0.5,
+    	0.5, 0.5, -0.5,
+    	-0.5, -0.5, 0.5,
+    	-0.5, -0.5, -0.5,
+    	0.5, -0.5, -0.5,
+    	-0.5, -0.5, 0.5,
+    	0.5, -0.5, -0.5,
+    	0.5, -0.5, 0.5,
+    	// -0.5, 0.5, 0.5,
+    	// 0.5, 0.5, -0.5,
+    	// 0.5, 0.5, -0.5,
     };
     // scaling side to requirement
     static const GLfloat color_buffer_data [] = {
@@ -510,39 +515,14 @@ VAO* createCube (void)
 	0.0f, 0.0f, 1.0f,
 	0.0f, 0.0f, 1.0f,
 	0.0f, 0.0f, 1.0f,
-	0, 0, 0,
-	0, 0, 0,
-	1, 1, 1,
+	// 0, 0, 0,
+	// 0, 0, 0,
+	// 1, 1, 1,
     };
 
     // create3DObject creates and returns a handle to a VAO that can be used later
-    rectangle = create3DObject(GL_TRIANGLES, 13*3, vertex_buffer_data, color_buffer_data, GL_FILL);
+    rectangle = create3DObject(GL_TRIANGLES, 12*3, vertex_buffer_data, color_buffer_data, GL_FILL);
 }
-void createFloor ()
-{
-    // GL3 accepts only Triangles. Quads are not supported
-    static const GLfloat vertex_buffer_data [] = {
-	-2, -1, 2,
-	2, -1, 2,
-	-2, -1, -2,
-	-2, -1, -2,
-	2, -1, 2,
-	2, -1, -2,
-    };
-
-    static const GLfloat color_buffer_data [] = {
-	0.65, 0.165, 0.165,
-	0.65, 0.165, 0.165,
-	0.65, 0.165, 0.165,
-	0.65, 0.165, 0.165,
-    	0.65, 0.165, 0.165,
-	0.65, 0.165, 0.165,
-    };
-
-    // create3DObject creates and returns a handle to a VAO that can be used later
-    floor_vao = create3DObject(GL_TRIANGLES, 2*3, vertex_buffer_data, color_buffer_data, GL_FILL);
-}
-
 float camera_rotation_angle = 90;
 
 /* Render the scene with openGL */
@@ -558,8 +538,6 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
     // Don't change unless you know what you are doing
     glUseProgram(programID);
 
-    UpdateCamera() ;
-
     glm::mat4 VP;
     glm::mat4 MVP;	// MVP = Projection * View * Model
 
@@ -567,46 +545,39 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 
     for(auto it:Blocks)
     {
-        Matrices.model = glm::translate (it.location) * glm::scale(it.scale);
-        Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
         MVP = VP * Matrices.model;
         glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
         draw3DObject(it.object);
     }
-    // glm::mat4 translateRectangle = glm::translate (rect_pos) * glm::scale(glm::vec3(0.5,1.5,1.5));        // glTranslatef
-    // glm::mat4 rotateRectangle = glm::rotate((float)(rectangle_rotation*M_PI/180.0f), glm::vec3(0,0,1));
-    // Matrices.model *= (translateRectangle * rotateRectangle);
-	// MVP = VP * Matrices.model;
-    // glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
-    //
-    // draw3DObject(rectangle);
 
-
-    Matrices.model = glm::translate(floor_pos);
-    MVP = VP * Matrices.model;
-    glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
-
-    // draw3DObject draws the VAO given to it using current MVP matrix
-    draw3DObject(floor_vao);
-
+    for(auto it:Floor)
+    {
+        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        MVP = VP * Matrices.model;
+        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        draw3DObject(it.object);
+    }
 }
 /************************
     CAMERA
 *************************/
 void InitCamera(void)
 {
-    Camera.location = glm::vec3( 0, 0, CameraSphereRadius);
+    Camera.location = glm::vec3( CameraSphereRadius, 0, 0);
     // Target - Where is the camera looking at.  Don't change unless you are sure!!
     Camera.direction = glm::vec3(0, 0, 0);
     // Up - Up vector defines tilt of camera.  Don't change unless you are sure!!
-    Camera.up = glm::vec3(0, 1, 0);
+    Camera.up = glm::vec3(0, 0, 1);
     // Check if the Camera attributes have been changed . If changed update Matricies.view
     Camera.ID = 1 ;
     UpdateCamera() ;
 }
 void UpdateCamera(void)
 {
-    Matrices.view = glm::lookAt(Camera.location,Camera.direction,Camera.up); // Fixed camera for 2D (ortho) in XY plane
+    Matrices.view = glm::lookAt(Camera.location,Camera.direction,Camera.up);
     Camera.ID = 0 ;
 }
 void MoveCameraHoz(float direction)
@@ -617,7 +588,7 @@ void MoveCameraHoz(float direction)
 void MoveCameraVetz(float direction)
 {
     glm::vec3 normal = normalize(cross(Camera.up,Camera.direction - Camera.location)) ;
-    Camera.location = glm::rotate(Camera.location,CameraRotateAngle*direction/(float)M_PI,normal) ;
+    Camera.location = glm::rotate(Camera.location,CameraRotateAngle*direction,normal) ;
     Camera.up = normalize(cross(Camera.direction - Camera.location,normal)) ;
     UpdateCamera() ;
 }
@@ -627,8 +598,8 @@ void MoveCameraVetz(float direction)
 void CreateBlocks(void)
 {
     GameObject temp ;
-    temp.height = temp.width = temp.length = 2 ;
-    temp.scale = glm::vec3(temp.height,temp.width,temp.length) ;
+    temp.height = 2 ;temp.width = 2 ;temp.length = 2 ;
+    temp.scale = glm::vec3(temp.width,temp.length,temp.height) ;
     temp.object = createCube() ;
     temp.AxisOfRotation = glm::vec3(0,0,1) ;
     temp.location = glm::vec3(0,0,0) ;
@@ -637,10 +608,16 @@ void CreateBlocks(void)
 /**********************
     FLOOR
 ***********************/
-// void createFloor(void)
-// {
-//
-// }
+void createFloor(void)
+{
+    GameObject temp ;
+    temp.height = 0.2 ;temp.width = 2 ;temp.length = 2 ;
+    temp.scale = glm::vec3(temp.width,temp.length,temp.height) ;
+    temp.object = createCube() ;
+    temp.AxisOfRotation = glm::vec3(0,0,1) ;
+    temp.location = glm::vec3(0,3,3) ;
+    Floor.pb(temp) ;
+}
 /* Initialise glfw window, I/O callbacks and the renderer to use */
 /* Nothing to Edit here */
 GLFWwindow* initGLFW (int width, int height){

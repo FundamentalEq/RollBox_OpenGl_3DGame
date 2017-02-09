@@ -11,6 +11,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 
 #define FN(i, n) for (int i = 0; i < (int)(n); ++i)
 #define FEN(i,n) for (int i = 1;i <= (int)(n); ++i)
@@ -98,7 +99,12 @@ struct GameObject
 
 // Global Variables
 vector<GameObject> Blocks ;
+GameObject Camera ;
 
+// Function Declarations
+void InitCamera(void) ;
+void UpdateCamera(void) ;
+void MoveCameraVetz(float) ;
 
 int do_rot, floor_rel;;
 GLuint programID;
@@ -376,6 +382,9 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
     case ' ':
 	do_rot ^= 1;
 	break;
+    case 'n' :
+    MoveCameraVetz(1) ;
+    break ;
     default:
 	break;
     }
@@ -506,24 +515,6 @@ VAO* createCube (void)
     // create3DObject creates and returns a handle to a VAO that can be used later
     rectangle = create3DObject(GL_TRIANGLES, 13*3, vertex_buffer_data, color_buffer_data, GL_FILL);
 }
-void createCam ()
-{
-    // GL3 accepts only Triangles. Quads are not supported
-    static const GLfloat vertex_buffer_data [] = {
-	-0.1, 0, 0,
-	0.1, 0, 0,
-	0, 0.1, 0,
-    };
-
-    static const GLfloat color_buffer_data [] = {
-	1, 1, 1,
-	1, 1, 1,
-	1, 1, 1,
-    };
-
-    // create3DObject creates and returns a handle to a VAO that can be used later
-    cam = create3DObject(GL_TRIANGLES, 1*3, vertex_buffer_data, color_buffer_data, GL_LINE);
-}
 void createFloor ()
 {
     // GL3 accepts only Triangles. Quads are not supported
@@ -564,14 +555,7 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
     // Don't change unless you know what you are doing
     glUseProgram(programID);
 
-    // Eye - Location of camera. Don't change unless you are sure!!
-    glm::vec3 eye ( 10*cos(camera_rotation_angle*M_PI/180.0f), 0, 10*sin(camera_rotation_angle*M_PI/180.0f) );
-    // Target - Where is the camera looking at.  Don't change unless you are sure!!
-    glm::vec3 target (0, 0, 0);
-    // Up - Up vector defines tilt of camera.  Don't change unless you are sure!!
-    glm::vec3 up (0, 1, 0);
-
-	Matrices.view = glm::lookAt(eye, target, up); // Fixed camera for 2D (ortho) in XY plane
+    UpdateCamera() ;
 
     glm::mat4 VP;
     glm::mat4 MVP;	// MVP = Projection * View * Model
@@ -604,6 +588,42 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 
 }
 /************************
+    CAMERA
+*************************/
+void InitCamera(void)
+{
+    Camera.location = glm::vec3( 10*cos(camera_rotation_angle*M_PI/180.0f), 0, 10*sin(camera_rotation_angle*M_PI/180.0f) );
+    // Target - Where is the camera looking at.  Don't change unless you are sure!!
+    Camera.direction = glm::vec3(0, 0, 0);
+    // Up - Up vector defines tilt of camera.  Don't change unless you are sure!!
+    Camera.up = glm::vec3(0, 1, 0);
+    // Check if the Camera attributes have been changed . If changed update Matricies.view
+    Camera.ID = 1 ;
+    UpdateCamera() ;
+}
+void UpdateCamera(void)
+{
+    Matrices.view = glm::lookAt(Camera.location,Camera.direction,Camera.up); // Fixed camera for 2D (ortho) in XY plane
+    Camera.ID = 0 ;
+}
+void MoveCameraHoz(float direction)
+{
+    Camera.location = glm::rotate(Camera.location,(float)0.1*direction,Camera.up) ;
+    UpdateCamera() ;
+    // glm::vec3 move = normalize(cross(Camera.location - Camera.direction,Camera.up)) ;
+    // float r = glm::length(Camera.location - Camera.direction) ;
+    // glm::vec3 displacement = move * r * (direction/M_PI) ;
+    // Camera.location = Camera.location + displacement ;
+    // UpdateCamera() ;
+}
+void MoveCameraVetz(float direction)
+{
+    glm::vec3 normal = normalize(cross(Camera.up,Camera.direction - Camera.location)) ;
+    Camera.location = glm::rotate(Camera.location,(float)1*direction/(float)M_PI,normal) ;
+    Camera.up = normalize(cross(Camera.direction - Camera.location,normal)) ;
+    UpdateCamera() ;
+}
+/************************
     BLOCKS
 *************************/
 void CreateBlocks(void)
@@ -616,6 +636,13 @@ void CreateBlocks(void)
     temp.location = glm::vec3(0,0,0) ;
     Blocks.pb(temp) ;
 }
+/**********************
+    FLOOR
+***********************/
+// void createFloor(void)
+// {
+//
+// }
 /* Initialise glfw window, I/O callbacks and the renderer to use */
 /* Nothing to Edit here */
 GLFWwindow* initGLFW (int width, int height){
@@ -658,8 +685,8 @@ void initGL (GLFWwindow* window, int width, int height)
     /* Objects should be created before any other gl function and shaders */
     // Create the models
     // rectangle = createCube() ;
+    InitCamera() ;
     CreateBlocks() ;
-    createCam();
     createFloor();
 
     // Create and compile our GLSL program from the shaders
@@ -705,11 +732,11 @@ int main (int argc, char** argv)
 
         // OpenGL Draw commands
 	current_time = glfwGetTime();
-	if(do_rot)
-	    camera_rotation_angle += 90*(current_time - last_update_time); // Simulating camera rotation
-	if(camera_rotation_angle > 720)
-	    camera_rotation_angle -= 720;
-	last_update_time = current_time;
+	if(do_rot) MoveCameraHoz(1) ;
+
+
+
+    last_update_time = current_time;
     draw(window,0,0,1,1, 1, 1, 1);
         glfwSwapBuffers(window);
 

@@ -79,6 +79,9 @@ COLOR darkpink = {255/255.0,51/255.0,119/255.0};
 COLOR white = {255/255.0,255/255.0,255/255.0};
 COLOR score = {117/255.0,78/255.0,40/255.0};
 
+// Camera
+float CameraRotateAngle  = 0.5/M_PI ;
+float CameraSphereRadius = 10 ;
 struct GameObject
 {
     glm::vec3 location,AxisOfRotation,scale, direction,up, gravity , speed ;
@@ -592,7 +595,7 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 *************************/
 void InitCamera(void)
 {
-    Camera.location = glm::vec3( 10*cos(camera_rotation_angle*M_PI/180.0f), 0, 10*sin(camera_rotation_angle*M_PI/180.0f) );
+    Camera.location = glm::vec3( 0, 0, CameraSphereRadius);
     // Target - Where is the camera looking at.  Don't change unless you are sure!!
     Camera.direction = glm::vec3(0, 0, 0);
     // Up - Up vector defines tilt of camera.  Don't change unless you are sure!!
@@ -608,18 +611,13 @@ void UpdateCamera(void)
 }
 void MoveCameraHoz(float direction)
 {
-    Camera.location = glm::rotate(Camera.location,(float)0.1*direction,Camera.up) ;
+    Camera.location = glm::rotate(Camera.location,CameraRotateAngle*direction,Camera.up) ;
     UpdateCamera() ;
-    // glm::vec3 move = normalize(cross(Camera.location - Camera.direction,Camera.up)) ;
-    // float r = glm::length(Camera.location - Camera.direction) ;
-    // glm::vec3 displacement = move * r * (direction/M_PI) ;
-    // Camera.location = Camera.location + displacement ;
-    // UpdateCamera() ;
 }
 void MoveCameraVetz(float direction)
 {
     glm::vec3 normal = normalize(cross(Camera.up,Camera.direction - Camera.location)) ;
-    Camera.location = glm::rotate(Camera.location,(float)1*direction/(float)M_PI,normal) ;
+    Camera.location = glm::rotate(Camera.location,CameraRotateAngle*direction/(float)M_PI,normal) ;
     Camera.up = normalize(cross(Camera.direction - Camera.location,normal)) ;
     UpdateCamera() ;
 }

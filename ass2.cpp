@@ -83,6 +83,10 @@ COLOR score = {117/255.0,78/255.0,40/255.0};
 float CameraRotateAngle  = 0.5/M_PI ;
 float CameraSphereRadius = 10 ;
 
+// Tiles
+float TileWidth = 2 ;
+float TileLength = 2 ;
+
 struct GameObject
 {
     glm::vec3 location,AxisOfRotation,scale, direction,up, gravity , speed ;
@@ -110,6 +114,7 @@ vector<GameObject> Floor ;
 void InitCamera(void) ;
 void UpdateCamera(void) ;
 void MoveCameraVetz(float) ;
+void MoveCameraRadius(float) ;
 
 int do_rot, floor_rel;;
 GLuint programID;
@@ -339,50 +344,8 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
     case 'q':
 	quit(window);
 	break;
-    case 'a':
-	rect_pos.x -= 0.1;
-	break;
-    case 'd':
-	rect_pos.x += 0.1;
-	break;
-    case 'w':
-	rect_pos.y += 0.1;
-	break;
-    case 's':
-	rect_pos.y -= 0.1;
-	break;
-    case 'r':
-	rect_pos.z -= 0.1;
-	break;
-    case 'f':
-	rect_pos.z += 0.1;
-	break;
     case 'e':
 	rectangle_rotation += 1;
-	break;
-    case 'x' :
-    Blocks[0].AxisOfRotation = glm::vec3(1,0,0) ;
-    break ;
-    case 'j':
-	floor_pos.x -= 0.1;
-	break;
-    case 'l':
-	floor_pos.x += 0.1;
-	break;
-    case 'i':
-	floor_pos.y += 0.1;
-	break;
-    case 'k':
-	floor_pos.y -= 0.1;
-	break;
-    case 'y':
-	floor_pos.z -= 0.1;
-	break;
-    case 'h':
-	floor_pos.z += 0.1;
-	break;
-    case 'g':
-	floor_rel ^= 1;
 	break;
     case ' ':
 	do_rot ^= 1;
@@ -390,6 +353,11 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
     case 'n' :
     MoveCameraVetz(1) ;
     break ;
+    case 'm' :
+    MoveCameraVetz(-1) ;
+    break ;
+    case 'j' : MoveCameraRadius(-1) ; break ;
+    case 'k' : MoveCameraRadius(1) ; break ;
     default:
 	break;
     }
@@ -571,15 +539,9 @@ void InitCamera(void)
     Camera.direction = glm::vec3(0, 0, 0);
     // Up - Up vector defines tilt of camera.  Don't change unless you are sure!!
     Camera.up = glm::vec3(0, 0, 1);
-    // Check if the Camera attributes have been changed . If changed update Matricies.view
-    Camera.ID = 1 ;
     UpdateCamera() ;
 }
-void UpdateCamera(void)
-{
-    Matrices.view = glm::lookAt(Camera.location,Camera.direction,Camera.up);
-    Camera.ID = 0 ;
-}
+void UpdateCamera(void) {  Matrices.view = glm::lookAt(Camera.location,Camera.direction,Camera.up); }
 void MoveCameraHoz(float direction)
 {
     Camera.location = glm::rotate(Camera.location,CameraRotateAngle*direction,Camera.up) ;
@@ -590,6 +552,13 @@ void MoveCameraVetz(float direction)
     glm::vec3 normal = normalize(cross(Camera.up,Camera.direction - Camera.location)) ;
     Camera.location = glm::rotate(Camera.location,CameraRotateAngle*direction,normal) ;
     Camera.up = normalize(cross(Camera.direction - Camera.location,normal)) ;
+    UpdateCamera() ;
+}
+void MoveCameraRadius(float direction)
+{
+    float Radius = glm::length(Camera.location) * (float)(1 + direction*0.05)  ;
+    if(Radius < 5) Radius = 5 ;
+    Camera.location = normalize(Camera.location) * Radius  ;
     UpdateCamera() ;
 }
 /************************
@@ -610,9 +579,10 @@ void CreateBlocks(void)
 ***********************/
 void createFloor(void)
 {
+    float delta = 0.05 ;
     GameObject temp ;
-    temp.height = 0.2 ;temp.width = 2 ;temp.length = 2 ;
-    temp.scale = glm::vec3(temp.width,temp.length,temp.height) ;
+    temp.height = 0.2 ;temp.width = TileWidth ;temp.length = TileLength ;
+    temp.scale = glm::vec3(temp.width - delta,temp.length - delta,temp.height) ;
     temp.object = createCube() ;
     temp.AxisOfRotation = glm::vec3(0,0,1) ;
     temp.location = glm::vec3(-3,-9,-3) ;

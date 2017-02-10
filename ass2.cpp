@@ -12,6 +12,8 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/rotate_vector.hpp>
+#include <SOIL/SOIL.h>
+
 
 #define FN(i, n) for (int i = 0; i < (int)(n); ++i)
 #define FEN(i,n) for (int i = 1;i <= (int)(n); ++i)
@@ -86,6 +88,7 @@ float CameraSphereRadius = 10 ;
 // Tiles
 float TileWidth = 2 ;
 float TileLength = 2 ;
+float TileHeight = 0.2 ;
 
 struct GameObject
 {
@@ -511,14 +514,14 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 
 	VP = Matrices.projection * Matrices.view;
 
-    // for(auto it:Blocks)
-    // {
-    //     Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
-    //     // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
-    //     MVP = VP * Matrices.model;
-    //     glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
-    //     draw3DObject(it.object);
-    // }
+    for(auto it:Blocks)
+    {
+        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        MVP = VP * Matrices.model;
+        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        draw3DObject(it.object);
+    }
 
     for(auto it:Floor)
     {
@@ -544,14 +547,14 @@ void InitCamera(void)
 void UpdateCamera(void) {  Matrices.view = glm::lookAt(Camera.location,Camera.direction,Camera.up); }
 void MoveCameraHoz(float direction)
 {
-    Camera.location = glm::rotate(Camera.location,CameraRotateAngle*direction,Camera.up) ;
+    Camera.location = glm::rotate(Camera.location,CameraRotateAngle*direction,glm::vec3(0,0,1)) ;
     UpdateCamera() ;
 }
 void MoveCameraVetz(float direction)
 {
     glm::vec3 normal = normalize(cross(Camera.up,Camera.direction - Camera.location)) ;
     Camera.location = glm::rotate(Camera.location,CameraRotateAngle*direction,normal) ;
-    Camera.up = normalize(cross(Camera.direction - Camera.location,normal)) ;
+    // Camera.up = normalize(cross(Camera.direction - Camera.location,normal)) ;
     UpdateCamera() ;
 }
 void MoveCameraRadius(float direction)
@@ -567,11 +570,11 @@ void MoveCameraRadius(float direction)
 void CreateBlocks(void)
 {
     GameObject temp ;
-    temp.height = 2 ;temp.width = 2 ;temp.length = 2 ;
+    temp.height = 4 ;temp.width = TileWidth ;temp.length = TileLength ;
     temp.scale = glm::vec3(temp.width,temp.length,temp.height) ;
     temp.object = createCube() ;
     temp.AxisOfRotation = glm::vec3(0,0,1) ;
-    temp.location = glm::vec3(0,0,0) ;
+    temp.location = glm::vec3(-3,-9,-1) ;
     Blocks.pb(temp) ;
 }
 /**********************
@@ -581,7 +584,7 @@ void createFloor(void)
 {
     float delta = 0.05 ;
     GameObject temp ;
-    temp.height = 0.2 ;temp.width = TileWidth ;temp.length = TileLength ;
+    temp.height = TileHeight ;temp.width = TileWidth ;temp.length = TileLength ;
     temp.scale = glm::vec3(temp.width - delta,temp.length - delta,temp.height) ;
     temp.object = createCube() ;
     temp.AxisOfRotation = glm::vec3(0,0,1) ;
@@ -597,6 +600,7 @@ void createFloor(void)
         temp.location.x += temp.width ;
     }
 }
+
 /* Initialise glfw window, I/O callbacks and the renderer to use */
 /* Nothing to Edit here */
 GLFWwindow* initGLFW (int width, int height){

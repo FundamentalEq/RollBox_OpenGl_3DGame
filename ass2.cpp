@@ -2,17 +2,22 @@
 #include <cmath>
 #include <fstream>
 #include <vector>
+#include <map>
+#include <string>
+#include <cmath>
+#include <time.h>
+#include <stdlib.h>
 
-#include <GL/glew.h>
-#include <GL/gl.h>
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
+#include <SOIL/SOIL.h>
+#include <GL/gl.h>
+#include <GL/glu.h>
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/rotate_vector.hpp>
-#include <SOIL/SOIL.h>
 
 
 #define FN(i, n) for (int i = 0; i < (int)(n); ++i)
@@ -32,6 +37,8 @@ struct VAO {
     GLuint VertexArrayID;
     GLuint VertexBuffer;
     GLuint ColorBuffer;
+    GLuint TextureBuffer;
+    GLuint TextureID ;
 
     GLenum PrimitiveMode;
     GLenum FillMode;
@@ -40,10 +47,11 @@ struct VAO {
 typedef struct VAO VAO;
 
 struct GLMatrices {
-    glm::mat4 projection;
-    glm::mat4 model;
-    glm::mat4 view;
-    GLuint MatrixID;
+	glm::mat4 projection;
+	glm::mat4 model;
+	glm::mat4 view;
+	GLuint MatrixID; // For use with normal shader
+	GLuint TexMatrixID; // For use with texture shader
 } Matrices;
 
 struct COLOR
@@ -120,7 +128,7 @@ void MoveCameraVetz(float) ;
 void MoveCameraRadius(float) ;
 
 int do_rot, floor_rel;;
-GLuint programID;
+GLuint programID, waterProgramID, fontProgramID, textureProgramID;
 double last_update_time, current_time;
 glm::vec3 rect_pos, floor_pos;
 float rectangle_rotation = 0;
@@ -128,78 +136,78 @@ float rectangle_rotation = 0;
 /* Function to load Shaders - Use it as it is */
 GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path) {
 
-    // Create the shaders
-    GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-    GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+	// Create the shaders
+	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
+	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
 
-    // Read the Vertex Shader code from the file
-    std::string VertexShaderCode;
-    std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
-    if(VertexShaderStream.is_open())
+	// Read the Vertex Shader code from the file
+	std::string VertexShaderCode;
+	std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
+	if(VertexShaderStream.is_open())
 	{
-	    std::string Line = "";
-	    while(getline(VertexShaderStream, Line))
-		VertexShaderCode += "\n" + Line;
-	    VertexShaderStream.close();
+		std::string Line = "";
+		while(getline(VertexShaderStream, Line))
+			VertexShaderCode += "\n" + Line;
+		VertexShaderStream.close();
 	}
 
-    // Read the Fragment Shader code from the file
-    std::string FragmentShaderCode;
-    std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
-    if(FragmentShaderStream.is_open()){
-	std::string Line = "";
-	while(getline(FragmentShaderStream, Line))
-	    FragmentShaderCode += "\n" + Line;
-	FragmentShaderStream.close();
-    }
+	// Read the Fragment Shader code from the file
+	std::string FragmentShaderCode;
+	std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
+	if(FragmentShaderStream.is_open()){
+		std::string Line = "";
+		while(getline(FragmentShaderStream, Line))
+			FragmentShaderCode += "\n" + Line;
+		FragmentShaderStream.close();
+	}
 
-    GLint Result = GL_FALSE;
-    int InfoLogLength;
+	GLint Result = GL_FALSE;
+	int InfoLogLength;
 
-    // Compile Vertex Shader
-    //    printf("Compiling shader : %s\n", vertex_file_path);
-    char const * VertexSourcePointer = VertexShaderCode.c_str();
-    glShaderSource(VertexShaderID, 1, &VertexSourcePointer , NULL);
-    glCompileShader(VertexShaderID);
+	// Compile Vertex Shader
+	cout << "Compiling shader : " <<  vertex_file_path << endl;
+	char const * VertexSourcePointer = VertexShaderCode.c_str();
+	glShaderSource(VertexShaderID, 1, &VertexSourcePointer , NULL);
+	glCompileShader(VertexShaderID);
 
-    // Check Vertex Shader
-    glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    std::vector<char> VertexShaderErrorMessage(InfoLogLength);
-    glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
-    //    fprintf(stdout, "%s\n", &VertexShaderErrorMessage[0]);
+	// Check Vertex Shader
+	glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
+	glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+	std::vector<char> VertexShaderErrorMessage( max(InfoLogLength, int(1)) );
+	glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
+	cout << VertexShaderErrorMessage.data() << endl;
 
-    // Compile Fragment Shader
-    //    printf("Compiling shader : %s\n", fragment_file_path);
-    char const * FragmentSourcePointer = FragmentShaderCode.c_str();
-    glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer , NULL);
-    glCompileShader(FragmentShaderID);
+	// Compile Fragment Shader
+	cout << "Compiling shader : " << fragment_file_path << endl;
+	char const * FragmentSourcePointer = FragmentShaderCode.c_str();
+	glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer , NULL);
+	glCompileShader(FragmentShaderID);
 
-    // Check Fragment Shader
-    glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
-    glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    std::vector<char> FragmentShaderErrorMessage(InfoLogLength);
-    glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
-    //    fprintf(stdout, "%s\n", &FragmentShaderErrorMessage[0]);
+	// Check Fragment Shader
+	glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
+	glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+	std::vector<char> FragmentShaderErrorMessage( max(InfoLogLength, int(1)) );
+	glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
+	cout << FragmentShaderErrorMessage.data() << endl;
 
-    // Link the program
-    //    fprintf(stdout, "Linking program\n");
-    GLuint ProgramID = glCreateProgram();
-    glAttachShader(ProgramID, VertexShaderID);
-    glAttachShader(ProgramID, FragmentShaderID);
-    glLinkProgram(ProgramID);
+	// Link the program
+	cout << "Linking program" << endl;
+	GLuint ProgramID = glCreateProgram();
+	glAttachShader(ProgramID, VertexShaderID);
+	glAttachShader(ProgramID, FragmentShaderID);
+	glLinkProgram(ProgramID);
 
-    // Check the program
-    glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
-    glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
-    std::vector<char> ProgramErrorMessage( max(InfoLogLength, int(1)) );
-    glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
-    //    fprintf(stdout, "%s\n", &ProgramErrorMessage[0]);
+	// Check the program
+	glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
+	glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+	std::vector<char> ProgramErrorMessage( max(InfoLogLength, int(1)) );
+	glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
+	cout << ProgramErrorMessage.data() << endl;
 
-    glDeleteShader(VertexShaderID);
-    glDeleteShader(FragmentShaderID);
+	glDeleteShader(VertexShaderID);
+	glDeleteShader(FragmentShaderID);
 
-    return ProgramID;
+	return ProgramID;
 }
 
 static void error_callback(int error, const char* description)
@@ -214,14 +222,14 @@ void quit(GLFWwindow *window)
     exit(EXIT_SUCCESS);
 }
 
-void initGLEW(void){
-    glewExperimental = GL_TRUE;
-    if(glewInit()!=GLEW_OK){
-	fprintf(stderr,"Glew failed to initialize : %s\n", glewGetErrorString(glewInit()));
-    }
-    if(!GLEW_VERSION_3_3)
-	fprintf(stderr, "3.3 version not available\n");
-}
+// void initGLEW(void){
+//     glewExperimental = GL_TRUE;
+//     if(glewInit()!=GLEW_OK){
+// 	fprintf(stderr,"Glew failed to initialize : %s\n", glewGetErrorString(glewInit()));
+//     }
+//     if(!GLEW_VERSION_3_3)
+// 	fprintf(stderr, "3.3 version not available\n");
+// }
 
 
 
@@ -278,27 +286,123 @@ struct VAO* create3DObject (GLenum primitive_mode, int numVertices, const GLfloa
     return create3DObject(primitive_mode, numVertices, vertex_buffer_data, color_buffer_data, fill_mode);
 }
 
+
+struct VAO* create3DTexturedObject (GLenum primitive_mode, int numVertices, const GLfloat* vertex_buffer_data, const GLfloat* texture_buffer_data, GLuint textureID, GLenum fill_mode=GL_FILL)
+{
+	struct VAO* vao = new struct VAO;
+	vao->PrimitiveMode = primitive_mode;
+	vao->NumVertices = numVertices;
+	vao->FillMode = fill_mode;
+	vao->TextureID = textureID;
+
+	// Create Vertex Array Object
+	// Should be done after CreateWindow and before any other GL calls
+	glGenVertexArrays(1, &(vao->VertexArrayID)); // VAO
+	glGenBuffers (1, &(vao->VertexBuffer)); // VBO - vertices
+	glGenBuffers (1, &(vao->TextureBuffer));  // VBO - textures
+
+	glBindVertexArray (vao->VertexArrayID); // Bind the VAO
+	glBindBuffer (GL_ARRAY_BUFFER, vao->VertexBuffer); // Bind the VBO vertices
+	glBufferData (GL_ARRAY_BUFFER, 3*numVertices*sizeof(GLfloat), vertex_buffer_data, GL_STATIC_DRAW); // Copy the vertices into VBO
+	glVertexAttribPointer(
+						  0,                  // attribute 0. Vertices
+						  3,                  // size (x,y,z)
+						  GL_FLOAT,           // type
+						  GL_FALSE,           // normalized?
+						  0,                  // stride
+						  (void*)0            // array buffer offset
+						  );
+
+	glBindBuffer (GL_ARRAY_BUFFER, vao->TextureBuffer); // Bind the VBO textures
+	glBufferData (GL_ARRAY_BUFFER, 2*numVertices*sizeof(GLfloat), texture_buffer_data, GL_STATIC_DRAW);  // Copy the vertex colors
+	glVertexAttribPointer(
+						  2,                  // attribute 2. Textures
+						  2,                  // size (s,t)
+						  GL_FLOAT,           // type
+						  GL_FALSE,           // normalized?
+						  0,                  // stride
+						  (void*)0            // array buffer offset
+						  );
+
+	return vao;
+}
+
 /* Render the VBOs handled by VAO */
 void draw3DObject (struct VAO* vao)
 {
-    // Change the Fill Mode for this object
-    glPolygonMode (GL_FRONT_AND_BACK, vao->FillMode);
+	// Change the Fill Mode for this object
+	glPolygonMode (GL_FRONT_AND_BACK, vao->FillMode);
 
-    // Bind the VAO to use
-    glBindVertexArray (vao->VertexArrayID);
+	// Bind the VAO to use
+	glBindVertexArray (vao->VertexArrayID);
 
-    // Enable Vertex Attribute 0 - 3d Vertices
-    glEnableVertexAttribArray(0);
-    // Bind the VBO to use
-    glBindBuffer(GL_ARRAY_BUFFER, vao->VertexBuffer);
+	// Enable Vertex Attribute 0 - 3d Vertices
+	glEnableVertexAttribArray(0);
+	// Bind the VBO to use
+	glBindBuffer(GL_ARRAY_BUFFER, vao->VertexBuffer);
 
-    // Enable Vertex Attribute 1 - Color
-    glEnableVertexAttribArray(1);
-    // Bind the VBO to use
-    glBindBuffer(GL_ARRAY_BUFFER, vao->ColorBuffer);
+	// Enable Vertex Attribute 1 - Color
+	glEnableVertexAttribArray(1);
+	// Bind the VBO to use
+	glBindBuffer(GL_ARRAY_BUFFER, vao->ColorBuffer);
 
-    // Draw the geometry !
-    glDrawArrays(vao->PrimitiveMode, 0, vao->NumVertices); // Starting from vertex 0; 3 vertices total -> 1 triangle
+	// Draw the geometry !
+	glDrawArrays(vao->PrimitiveMode, 0, vao->NumVertices); // Starting from vertex 0; 3 vertices total -> 1 triangle
+}
+
+void draw3DTexturedObject (struct VAO* vao)
+{
+	// Change the Fill Mode for this object
+	glPolygonMode (GL_FRONT_AND_BACK, vao->FillMode);
+
+	// Bind the VAO to use
+	glBindVertexArray (vao->VertexArrayID);
+
+	// Enable Vertex Attribute 0 - 3d Vertices
+	glEnableVertexAttribArray(0);
+	// Bind the VBO to use
+	glBindBuffer(GL_ARRAY_BUFFER, vao->VertexBuffer);
+
+	// Bind Textures using texture units
+	glBindTexture(GL_TEXTURE_2D, vao->TextureID);
+
+	// Enable Vertex Attribute 2 - Texture
+	glEnableVertexAttribArray(2);
+	// Bind the VBO to use
+	glBindBuffer(GL_ARRAY_BUFFER, vao->TextureBuffer);
+
+	// Draw the geometry !
+	glDrawArrays(vao->PrimitiveMode, 0, vao->NumVertices); // Starting from vertex 0; 3 vertices total -> 1 triangle
+
+	// Unbind Textures to be safe
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+/* Create an OpenGL Texture from an image */
+GLuint createTexture (const char* filename)
+{
+	GLuint TextureID;
+	// Generate Texture Buffer
+	glGenTextures(1, &TextureID);
+	// All upcoming GL_TEXTURE_2D operations now have effect on our texture buffer
+	glBindTexture(GL_TEXTURE_2D, TextureID);
+	// Set our texture parameters
+	// Set texture wrapping to GL_REPEAT
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	// Set texture filtering (interpolation)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	// Load image and create OpenGL texture
+	int twidth, theight;
+	unsigned char* image = SOIL_load_image(filename, &twidth, &theight, 0, SOIL_LOAD_RGB);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, twidth, theight, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+	glGenerateMipmap(GL_TEXTURE_2D); // Generate MipMaps to use
+	SOIL_free_image_data(image); // Free the data read from file after creating opengl texture
+	glBindTexture(GL_TEXTURE_2D, 0); // Unbind texture when done, so we won't accidentily mess it up
+
+	return TextureID;
 }
 
 /**************************
@@ -380,7 +484,22 @@ void mouseButton (GLFWwindow* window, int button, int action, int mods)
     }
 }
 
-
+void mousescroll(GLFWwindow* window, double xoffset, double yoffset)
+{
+    // if (yoffset==-1) {
+    //     camera_fov*=1.1;
+    // }
+    // else if(yoffset==1){
+    //     camera_fov/=1.1; //make it bigger than current size
+    // }
+    // if(camera_fov>=2){
+    // 	camera_fov=2;
+    // }
+    // if(camera_fov<=0.5){
+    // 	camera_fov=0.5;
+    // }
+    // reshapeWindow(window,700,1400);
+}
 /* Executed when window is resized to 'width' and 'height' */
 /* Modify the bounds of the screen here in glm::ortho or Field of View in glm::Perspective */
 void reshapeWindow (GLFWwindow* window, int width, int height)
@@ -404,49 +523,46 @@ void reshapeWindow (GLFWwindow* window, int width, int height)
 VAO *rectangle, *cam, *floor_vao;
 
 // Creates the rectangle object used in this sample code
-VAO* createCube (void)
+VAO* createCube (GLuint textureID)
 {
     // GL3 accepts only Triangles. Quads are not supported
     static const GLfloat vertex_buffer_data[] = {
-        -0.5, 0.5, 0.5,
-    	-0.5, -0.5, 0.5,
-    	0.5, -0.5, 0.5,
-    	-0.5, 0.5, 0.5,
-    	0.5, -0.5, 0.5,
-    	0.5, 0.5, 0.5,
-    	0.5, 0.5, 0.5,
-    	0.5, -0.5, 0.5,
-    	0.5, -0.5, -0.5,
-    	0.5, 0.5, 0.5,
-    	0.5, -0.5, -0.5,
-    	0.5, 0.5, -0.5,
-    	0.5, 0.5, -0.5,
-    	0.5, -0.5, -0.5,
-    	-0.5, -0.5, -0.5,
-    	0.5, 0.5, -0.5,
-    	-0.5, -0.5, -0.5,
-    	-0.5, 0.5, -0.5,
-    	-0.5, 0.5, -0.5,
-    	-0.5, -0.5, -0.5,
-    	-0.5, -0.5, 0.5,
-    	-0.5, 0.5, -0.5,
-    	-0.5, -0.5, 0.5,
-    	-0.5, 0.5, 0.5,
-    	-0.5, 0.5, -0.5,
-    	-0.5, 0.5, 0.5,
-    	0.5, 0.5, 0.5,
-    	-0.5, 0.5, -0.5,
-    	0.5, 0.5, 0.5,
-    	0.5, 0.5, -0.5,
-    	-0.5, -0.5, 0.5,
-    	-0.5, -0.5, -0.5,
-    	0.5, -0.5, -0.5,
-    	-0.5, -0.5, 0.5,
-    	0.5, -0.5, -0.5,
-    	0.5, -0.5, 0.5,
-    	// -0.5, 0.5, 0.5,
-    	// 0.5, 0.5, -0.5,
-    	// 0.5, 0.5, -0.5,
+        -0.5 ,  0.5 ,  0.5 ,  //  1
+        -0.5 ,  -0.5 ,  0.5 ,  //  2
+        0.5 ,  -0.5 ,  0.5 ,  //  3
+        -0.5 ,  0.5 ,  0.5 ,  //  1
+        0.5 ,  -0.5 ,  0.5 ,  //  3
+        0.5 ,  0.5 ,  0.5 ,  //  4
+        0.5 ,  0.5 ,  0.5 ,  //  4
+        0.5 ,  -0.5 ,  0.5 ,  //  3
+        0.5 ,  -0.5 ,  -0.5 ,  //  5
+        0.5 ,  0.5 ,  0.5 ,  //  4
+        0.5 ,  -0.5 ,  -0.5 ,  //  5
+        0.5 ,  0.5 ,  -0.5 ,  //  6
+        0.5 ,  0.5 ,  -0.5 ,  //  6
+        0.5 ,  -0.5 ,  -0.5 ,  //  5
+        -0.5 ,  -0.5 ,  -0.5 ,  //  7
+        0.5 ,  0.5 ,  -0.5 ,  //  6
+        -0.5 ,  -0.5 ,  -0.5 ,  //  7
+        -0.5 ,  0.5 ,  -0.5 ,  //  8
+        -0.5 ,  0.5 ,  -0.5 ,  //  8
+        -0.5 ,  -0.5 ,  -0.5 ,  //  7
+        -0.5 ,  -0.5 ,  0.5 ,  //  2
+        -0.5 ,  0.5 ,  -0.5 ,  //  8
+        -0.5 ,  -0.5 ,  0.5 ,  //  2
+        -0.5 ,  0.5 ,  0.5 ,  //  1
+        -0.5 ,  0.5 ,  -0.5 ,  //  8
+        -0.5 ,  0.5 ,  0.5 ,  //  1
+        0.5 ,  0.5 ,  0.5 ,  //  4
+        -0.5 ,  0.5 ,  -0.5 ,  //  8
+        0.5 ,  0.5 ,  0.5 ,  //  4
+        0.5 ,  0.5 ,  -0.5 ,  //  6
+        -0.5 ,  -0.5 ,  0.5 ,  //  2
+        -0.5 ,  -0.5 ,  -0.5 ,  //  7
+        0.5 ,  -0.5 ,  -0.5 ,  //  5
+        -0.5 ,  -0.5 ,  0.5 ,  //  2
+        0.5 ,  -0.5 ,  -0.5 ,  //  5
+        0.5 ,  -0.5 ,  0.5 ,  //  3
     };
     // scaling side to requirement
     static const GLfloat color_buffer_data [] = {
@@ -490,9 +606,59 @@ VAO* createCube (void)
 	// 0, 0, 0,
 	// 1, 1, 1,
     };
+    GLfloat texture_buffer_data [] = {
+		0,1, // TexCoord 1 - bot left
+		1,1, // TexCoord 2 - bot right
+		1,0, // TexCoord 3 - top right
+
+        0,1,  // TexCoord 1 - bot left
+		1,0, // TexCoord 3 - top right
+		0,0, // TexCoord 4 - top left
+
+        0,1, // TexCoord 1 - bot left
+		1,1, // TexCoord 2 - bot right
+		1,0, // TexCoord 3 - top right
+
+        0,1,  // TexCoord 1 - bot left
+		1,0, // TexCoord 3 - top right
+		0,0, // TexCoord 4 - top left
+
+        0,1, // TexCoord 1 - bot left
+		1,1, // TexCoord 2 - bot right
+		1,0, // TexCoord 3 - top right
+
+        0,1,  // TexCoord 1 - bot left
+		1,0, // TexCoord 3 - top right
+		0,0, // TexCoord 4 - top left
+
+        0,1, // TexCoord 1 - bot left
+		1,1, // TexCoord 2 - bot right
+		1,0, // TexCoord 3 - top right
+
+        0,1,  // TexCoord 1 - bot left
+		1,0, // TexCoord 3 - top right
+		0,0, // TexCoord 4 - top left
+
+        0,1, // TexCoord 1 - bot left
+		1,1, // TexCoord 2 - bot right
+		1,0, // TexCoord 3 - top right
+
+        0,1,  // TexCoord 1 - bot left
+		1,0, // TexCoord 3 - top right
+		0,0, // TexCoord 4 - top left
+
+        0,1, // TexCoord 1 - bot left
+		1,1, // TexCoord 2 - bot right
+		1,0, // TexCoord 3 - top right
+
+        0,1,  // TexCoord 1 - bot left
+		1,0, // TexCoord 3 - top right
+		0,0, // TexCoord 4 - top left
+
+	};
 
     // create3DObject creates and returns a handle to a VAO that can be used later
-    rectangle = create3DObject(GL_TRIANGLES, 12*3, vertex_buffer_data, color_buffer_data, GL_FILL);
+    return create3DTexturedObject(GL_TRIANGLES, 12*3, vertex_buffer_data, texture_buffer_data, textureID, GL_FILL);
 }
 float camera_rotation_angle = 90;
 
@@ -507,6 +673,7 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 
     // use the loaded shader program
     // Don't change unless you know what you are doing
+    glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(programID);
 
     glm::mat4 VP;
@@ -514,14 +681,6 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 
 	VP = Matrices.projection * Matrices.view;
 
-    for(auto it:Blocks)
-    {
-        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
-        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
-        MVP = VP * Matrices.model;
-        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
-        draw3DObject(it.object);
-    }
 
     for(auto it:Floor)
     {
@@ -530,6 +689,21 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
         MVP = VP * Matrices.model;
         glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
         draw3DObject(it.object);
+    }
+
+    // Render with texture shaders now
+	glUseProgram(textureProgramID);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glUniform1i(glGetUniformLocation(textureProgramID, "texSampler"), 0);
+
+    for(auto it:Blocks)
+    {
+        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        MVP = VP * Matrices.model;
+        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        draw3DTexturedObject(it.object);
     }
 }
 /************************
@@ -567,12 +741,12 @@ void MoveCameraRadius(float direction)
 /************************
     BLOCKS
 *************************/
-void CreateBlocks(void)
+void CreateBlocks(int textureID)
 {
     GameObject temp ;
     temp.height = 4 ;temp.width = TileWidth ;temp.length = TileLength ;
     temp.scale = glm::vec3(temp.width,temp.length,temp.height) ;
-    temp.object = createCube() ;
+    temp.object = createCube(textureID) ;
     temp.AxisOfRotation = glm::vec3(0,0,1) ;
     temp.location = glm::vec3(-3,-9,-1) ;
     Blocks.pb(temp) ;
@@ -586,7 +760,7 @@ void createFloor(void)
     GameObject temp ;
     temp.height = TileHeight ;temp.width = TileWidth ;temp.length = TileLength ;
     temp.scale = glm::vec3(temp.width - delta,temp.length - delta,temp.height) ;
-    temp.object = createCube() ;
+    // temp.object = createCube() ;
     temp.AxisOfRotation = glm::vec3(0,0,1) ;
     temp.location = glm::vec3(-3,-9,-3) ;
     FN(x,4)
@@ -603,64 +777,89 @@ void createFloor(void)
 
 /* Initialise glfw window, I/O callbacks and the renderer to use */
 /* Nothing to Edit here */
-GLFWwindow* initGLFW (int width, int height){
-    GLFWwindow* window; // window desciptor/handle
+GLFWwindow* initGLFW (int width, int height)
+{
+	GLFWwindow* window; // window desciptor/handle
 
-    glfwSetErrorCallback(error_callback);
-    if (!glfwInit()) {
-        exit(EXIT_FAILURE);
-    }
+	glfwSetErrorCallback(error_callback);
+	if (!glfwInit()) {
+		exit(EXIT_FAILURE);
+	}
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window = glfwCreateWindow(width, height, "Sample OpenGL 3.3 Application", NULL, NULL);
+	window = glfwCreateWindow(width, height, "Sample OpenGL 3.3 Application", NULL, NULL);
 
-    if (!window) {
-	exit(EXIT_FAILURE);
-        glfwTerminate();
-    }
+	if (!window) {
+		glfwTerminate();
+		exit(EXIT_FAILURE);
+	}
 
-    glfwMakeContextCurrent(window);
-    //    gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
-    glfwSwapInterval( 1 );
-    glfwSetFramebufferSizeCallback(window, reshapeWindow);
-    glfwSetWindowSizeCallback(window, reshapeWindow);
-    glfwSetWindowCloseCallback(window, quit);
-    glfwSetKeyCallback(window, keyboard);      // general keyboard input
-    glfwSetCharCallback(window, keyboardChar);  // simpler specific character handling
-    glfwSetMouseButtonCallback(window, mouseButton);  // mouse button clicks
+	glfwMakeContextCurrent(window);
+	gladLoadGLLoader((GLADloadproc) glfwGetProcAddress);
+	glfwSwapInterval( 1 );
 
-    return window;
+	/* --- register callbacks with GLFW --- */
+
+	/* Register function to handle window resizes */
+	/* With Retina display on Mac OS X GLFW's FramebufferSize
+	 is different from WindowSize */
+	glfwSetFramebufferSizeCallback(window, reshapeWindow);
+	glfwSetWindowSizeCallback(window, reshapeWindow);
+
+	/* Register function to handle window close */
+	glfwSetWindowCloseCallback(window, quit);
+
+	/* Register function to handle keyboard input */
+	glfwSetKeyCallback(window, keyboard);      // general keyboard input
+	glfwSetCharCallback(window, keyboardChar);  // simpler specific character handling
+
+	/* Register function to handle mouse click */
+	glfwSetMouseButtonCallback(window, mouseButton);  // mouse button clicks
+	glfwSetScrollCallback(window, mousescroll); // mouse scroll
+
+	return window;
 }
+
 
 /* Initialize the OpenGL rendering properties */
 /* Add all the models to be created here */
 void initGL (GLFWwindow* window, int width, int height)
 {
+    glActiveTexture(GL_TEXTURE0);
+	textureProgramID = LoadShaders( "TextureRender.vert", "TextureRender.frag" );
+	// Get a handle for our "MVP" uniform
+	Matrices.TexMatrixID = glGetUniformLocation(textureProgramID, "MVP");
+    GLint textureID5 = createTexture("Images/middle.png");
     /* Objects should be created before any other gl function and shaders */
     // Create the models
     // rectangle = createCube() ;
     InitCamera() ;
-    CreateBlocks() ;
-    createFloor();
+    CreateBlocks(textureID5) ;
+    // createFloor();
 
     // Create and compile our GLSL program from the shaders
-    programID = LoadShaders( "Sample_GL.vert", "Sample_GL.frag" );
-    // Get a handle for our "MVP" uniform
-    Matrices.MatrixID = glGetUniformLocation(programID, "MVP");
+	programID = LoadShaders( "shader.vert", "shader.frag" );
+	waterProgramID = LoadShaders ( "watershader.vert", "watershader.frag");
+	// Get a handle for our "MVP" uniform
+	Matrices.MatrixID = glGetUniformLocation(programID, "MVP");
 
 
-    reshapeWindow (window, width, height);
+	reshapeWindow (window, width, height);
 
-    // Background color of the scene
-    glClearColor (0.3f, 0.3f, 0.3f, 0.0f); // R, G, B, A
-    glClearDepth (1.0f);
+	// Background color of the scene
+	glClearColor (0.3f, 0.3f, 0.3f, 0.0f); // R, G, B, A
+	glClearDepth (1.0f);
 
-    glEnable (GL_DEPTH_TEST);
-    glDepthFunc (GL_LEQUAL);
+	glEnable (GL_DEPTH_TEST);
+	glDepthFunc (GL_LEQUAL);
+	//glEnable(GL_LIGHTING);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 
     // cout << "VENDOR: " << glGetString(GL_VENDOR) << endl;
     // cout << "RENDERER: " << glGetString(GL_RENDERER) << endl;
@@ -678,7 +877,7 @@ int main (int argc, char** argv)
     floor_rel = 1;
 
     GLFWwindow* window = initGLFW(width, height);
-    initGLEW();
+    // initGLEW();
     initGL (window, width, height);
 
     last_update_time = glfwGetTime();

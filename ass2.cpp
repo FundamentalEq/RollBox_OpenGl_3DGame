@@ -119,6 +119,7 @@ bool BlockRotatingUpdateV = false ;
 bool BlockRotatingH = false ;
 bool BlockRotatingV = false ;
 bool BlockIsFalling = false ;
+float BlockFallingSpeed = 0.05 ;
 float BlockMoveDir = 0 ;
 // GameControls
 bool PauseGame = false ;
@@ -159,6 +160,7 @@ void FindAxisOfRotationR(float) ;
 void MoveBlockH(float) ;
 void MoveBlockV(float) ;
 void CheckFall(void) ;
+void BlockFall(void) ;
 
 int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
@@ -744,8 +746,9 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
     glUniform1i(glGetUniformLocation(textureProgramID, "texSampler"), 0);
 
     // FindAxisOfRotationR(1) ;
-    if(BlockRotatingH) MoveBlockH(BlockMoveDir) ;
-    if(BlockRotatingV) MoveBlockV(BlockMoveDir) ;
+    if(BlockIsFalling) BlockFall() ;
+    else if(BlockRotatingH) MoveBlockH(BlockMoveDir) ;
+    else if(BlockRotatingV) MoveBlockV(BlockMoveDir) ;
     for(auto &it:Blocks)
     {
         Matrices.model = RotateBlock(it.direction,normalize(cross(it.up,it.direction)),it.up) * glm::scale(it.scale)     ;
@@ -944,6 +947,12 @@ void MoveBlockV(float dir)
         }
     }
 }
+void BlockFall(void)
+{
+    auto &Block = Blocks[0] ;
+    Block.location.z -= BlockFallingSpeed ;
+    if(abs(Block.location.z) >= 2*CameraSphereRadius) Block.location.z = 2*CameraSphereRadius ;
+}
 /*********************
     FALL DETECTION
 **********************/
@@ -957,7 +966,7 @@ void CheckFall(void)
             fall = false ;
             break ;
         }
-    if(fall) cout<<"Block should fall"<<endl ;
+    if(fall) cout<<"Block should fall"<<endl ,BlockIsFalling = true ;
     else cout<<"Block will not fall"<<endl ;
 }
 /**********************

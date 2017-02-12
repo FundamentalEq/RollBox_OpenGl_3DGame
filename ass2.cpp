@@ -149,6 +149,7 @@ vector< vector<GameObject> > HiddenFloor ;
 vector< pair<int,int> > ButtonList ;
 vector<GameObject> Buttons ;
 map< string,int > Textures ;
+vector<GameObject> SkylineBox;
 
 // Function Declarations
 void InitCamera(void) ;
@@ -767,6 +768,14 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
         glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
         draw3DTexturedObject(it.object);
     }
+    for(auto &it:SkylineBox)
+    {
+        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        MVP = VP * Matrices.model;
+        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        draw3DTexturedObject(it.object);
+    }
 }
 /************************
     CAMERA
@@ -1050,6 +1059,21 @@ void CreateFloor(void)
     AlignBlock(Grid) ;
 }
 /***************************
+    SKYLINE BOX
+****************************/
+void CreateSkylineBox(void)
+{
+    GameObject temp ;
+    temp.height = temp.width = temp.length = 10*CameraSphereRadius ;
+    temp.scale = glm::vec3(temp.width,temp.length,temp.height) ;
+    temp.object = createCube(Textures["SkylineBox"]) ;
+    temp.AxisOfRotation = glm::vec3(0,0,1) ;
+    temp.up = glm::vec3(0,0,1) ;
+    temp.direction = glm::vec3(-1,0,0) ;
+    temp.location = glm::vec3(0,0,0) ;
+    SkylineBox.pb(temp) ;
+}
+/***************************
     TEXTURES
 ****************************/
 void LoadTextures(void)
@@ -1060,6 +1084,7 @@ void LoadTextures(void)
     cout<<"Brick "<<Textures["Brick"]<<endl  ;
     Textures["HiddenBrick"] = createTexture("Images/res_texture.png");
     Textures["Buttons"] = createTexture("Images/res_texture.png");
+    Textures["SkylineBox"] = createTexture("Images/sky.png");
 }
 /* Initialise glfw window, I/O callbacks and the renderer to use */
 /* Nothing to Edit here */
@@ -1126,7 +1151,7 @@ void initGL (GLFWwindow* window, int width, int height)
     InitCamera() ;
     CreateBlocks() ;
     CreateFloor();
-
+    CreateSkylineBox() ;
     // Create and compile our GLSL program from the shaders
 	programID = LoadShaders( "shader.vert", "shader.frag" );
 	waterProgramID = LoadShaders ( "watershader.vert", "watershader.frag");

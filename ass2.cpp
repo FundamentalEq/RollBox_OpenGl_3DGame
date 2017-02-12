@@ -136,6 +136,7 @@ void InitCamera(void) ;
 void UpdateCamera(void) ;
 void MoveCameraVetz(float) ;
 void MoveCameraRadius(float) ;
+glm::mat4 RotateBlock(glm::vec3 ,glm::vec3,glm::vec3) ;
 
 int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
@@ -706,8 +707,8 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 
     for(auto &it:Blocks)
     {
-        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
-        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        Matrices.model = RotateBlock(it.direction,normalize(cross(it.up,it.direction)),it.up) * glm::scale(it.scale)     ;
+        Matrices.model = glm::translate(it.location) * Matrices.model ;
         MVP = VP * Matrices.model;
         glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
         draw3DTexturedObject(it.object);
@@ -770,6 +771,14 @@ void CreateBlocks(void)
     temp.location = glm::vec3(0,0,0) ;
     Blocks.pb(temp) ;
 }
+glm::mat4 RotateBlock(glm::vec3 X,glm::vec3 Y,glm::vec3 Z)
+{
+    glm::vec4 row1(X.x,Y.x,Z.x,0) ;
+    glm::vec4 row2(X.y,Y.y,Z.y,0) ;
+    glm::vec4 row3(X.z,Y.z,Z.z,0) ;
+    glm::vec4 row4(0,0,0,1) ;
+    return glm::mat4(row1,row2,row3,row4) ;
+}
 void AlignBlock(vector<vector<int> > &Grid)
 {
     vector< pair<int,int> > Available  ;
@@ -780,7 +789,7 @@ void AlignBlock(vector<vector<int> > &Grid)
     Blocks[0].location.x = (it.first - BoardWidth/2)*TileWidth;
     Blocks[0].location.y = (it.second - BoardLength/2)*TileLength ;
 }
-glm::vec3 FindFront(void)
+glm::vec3 FindFrontOfBlock(void)
 {
     glm::vec3 right = normalize(cross(Camera.direction - Camera.location,Camera.up)) ;
     if(abs(dot(right,glm::vec3(1,0,0))) > abs(dot(right,glm::vec3(0,1,0))))
@@ -788,6 +797,11 @@ glm::vec3 FindFront(void)
     else
         right = glm::vec3(0,1,0) * dot(right,glm::vec3(0,1,0)) / abs(dot(right,glm::vec3(0,1,0))) ;
     return normalize(cross(glm::vec3(0,0,1),right)) ;
+}
+void MoveBlock(void)
+{
+    glm::vec3 front = FindFrontOfBlock() ;
+    glm::vec3 normal = normalize(cross(Blocks[0].direction,Blocks[0].up)) ;
 }
 /**********************
     BUTTONS

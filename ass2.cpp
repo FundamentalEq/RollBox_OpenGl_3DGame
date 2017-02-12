@@ -790,6 +790,11 @@ void MoveCameraRadius(float direction)
     BLOCKS
 *************************/
 int RandomNo(int limit) { return rand()%limit ;}
+float CorrectNumbers(float x)
+{
+    if(abs(x - ceil(x)) > abs(x - floor(x))) return floor(x) ;
+    return ceil(x) ;
+}
 void CreateBlocks(void)
 {
     GameObject temp ;
@@ -873,10 +878,21 @@ void MoveBlockH(float dir)
     BlockBodyRefPoint = glm::rotate(BlockBodyRefPoint,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockRight))) ;
     // BlockTranslation = glm::translate(fixedpoint - point) ;
     Block.location = BlockRotationFixedPoint - BlockBodyRefPoint ;
+    if(!BlockRotatingUpdateH)
+    {
+        FN(i,3)
+        {
+            Block.up[i] = CorrectNumbers(Block.up[i]) ;
+            Block.direction[i] = CorrectNumbers(Block.direction[i]) ;
+            Block.location[i] = CorrectNumbers(Block.location[i]) ;
+        }
+    }
     cout<<"UP vector" ; FN(i,3) cout<<Block.up[i]<<" " ; cout<<endl ;
     cout<<"direction vector" ; FN(i,3) cout<<Block.direction[i]<<" " ; cout<<endl ;
     cout<<"location vector" ; FN(i,3) cout<<Block.location[i]<<" " ; cout<<endl ;
 }
+
+
 /**********************
     BUTTONS
 **********************/

@@ -757,6 +757,7 @@ void MoveCameraRadius(float direction)
 /************************
     BLOCKS
 *************************/
+int RandomNo(int limit) { return rand()%limit ;}
 void CreateBlocks(void)
 {
     GameObject temp ;
@@ -767,6 +768,16 @@ void CreateBlocks(void)
     // temp.location = glm::vec3(-3,-9,-1) ;
     temp.location = glm::vec3(0,0,0) ;
     Blocks.pb(temp) ;
+}
+void AlignBlock(vector<vector<int> > &Grid)
+{
+    vector< pair<int,int> > Available  ;
+    FN(i,sz(Grid)) if(Grid[i][0] == 1 || (Grid[i][0]%2 == 0 && Grid[i][0] > 0) ) Available.pb({i,0}) ;
+    // there must be atleast one spot available
+    assert(sz(Available) > 0 ) ;
+    auto it = Available[ RandomNo(sz(Available)) ] ;
+    Blocks[0].location.x = (it.first - BoardWidth/2)*TileWidth;
+    Blocks[0].location.y = (it.second - BoardLength/2)*TileLength ;
 }
 /**********************
     BUTTONS
@@ -780,7 +791,7 @@ void CreateButtons(void)
     temp.AxisOfRotation = glm::vec3(0,0,1) ;
     for(auto &it : ButtonList)
     {
-        temp.location = glm::vec3((it.first - BoardWidth/2)*TileWidth,(it.second - BoardLength/2)*TileLength,0) ;
+        temp.location = glm::vec3((it.first - BoardWidth/2)*TileWidth,(it.second - BoardLength/2)*TileLength,-(TileLength+TileWidth)/2) ;
         Buttons.pb(temp) ;
     }
 }
@@ -789,7 +800,6 @@ void CreateButtons(void)
 ***********************/
 vector< vector<int> > GetGrid(void)
 {
-    cout<<"GetGrid called"<<endl ;
     string FileName = "Levels/Level" + to_string(LevelNumber) + ".txt" ;
     ifstream in(FileName.c_str()) ;
     if(!in.is_open())
@@ -799,20 +809,13 @@ vector< vector<int> > GetGrid(void)
     }
     int rows = 0 , cols = 0 ,temp = 0 ;
     in>>rows>>cols ;
-    cout<<"rows = "<<rows<<" cols = "<<cols<<endl ;
     vector< vector<int> > Grid(rows) ;
     FN(i,rows) FN(j,cols)
     {
-        cout<<"i = "<<i<<"j = "<<j<<endl ;
-        in>>temp ; cout<<"temp is "<<temp<<endl ;
+        in>>temp ;
         Grid[i].pb(temp) ;
     }
     in.close() ;
-    FN(i,rows)
-    {
-        cout<<endl ;
-        FN(j,cols) cout<<Grid[i][j]<<" " ;
-    }
     return Grid ;
 }
 void CreateFloor(void)
@@ -823,7 +826,7 @@ void CreateFloor(void)
     for(auto &vec:Grid) for(auto &it:vec) mx = max(mx,it) ;
     HiddenFloor.resize(mx/2) ;
 
-    BoardLength = Grid.size() , BoardWidth = Grid[0].size();
+    BoardLength = sz(Grid) , BoardWidth = sz(Grid[0]);
     float delta = 0.2 ;
 
     GameObject lblock ;
@@ -843,17 +846,18 @@ void CreateFloor(void)
     {
         if(Grid[i][j] == 1 || (Grid[i][j]%2 == 0 && Grid[i][j] > 0 ) )
         {
-            lblock.location = glm::vec3((i - BoardWidth/2)*TileWidth,(j - BoardLength/2)*TileLength, -TileHeight) ;
+            lblock.location = glm::vec3((i - BoardWidth/2)*TileWidth,(j - BoardLength/2)*TileLength, -(TileLength + TileWidth)/2 - TileHeight/2) ;
             LiveFloor.pb(lblock) ;
         }
         else if(Grid[i][j] > 0)
         {
-            hblock.location = glm::vec3((i - BoardWidth/2)*TileWidth,(j - BoardLength/2)*TileLength, -TileHeight) ;
+            hblock.location = glm::vec3((i - BoardWidth/2)*TileWidth,(j - BoardLength/2)*TileLength, -(TileLength + TileWidth)/2 - TileHeight/2) ;
             HiddenFloor[Grid[i][j]/2 - 1].pb(hblock) ;
         }
         if(Grid[i][j]%2 == 0 && Grid[i][j] > 0) ButtonList[Grid[i][j]/2 - 1] = {i,j} ;
     }
     CreateButtons() ;
+    AlignBlock(Grid) ;
 }
 /***************************
     TEXTURES
@@ -967,7 +971,7 @@ int main (int argc, char** argv)
     floor_pos = glm::vec3(0, 0, 0);
     do_rot = 0;
     floor_rel = 1;
-
+    srand(glfwGetTime()) ;
     GLFWwindow* window = initGLFW(width, height);
     // initGLEW();
     initGL (window, width, height);

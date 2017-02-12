@@ -98,6 +98,9 @@ float TileWidth = 2 ;
 float TileLength = 2 ;
 float TileHeight = 0.2 ;
 
+// Board
+float BoardWidth ;
+float BoardHeight ;
 struct GameObject
 {
     glm::vec3 location,AxisOfRotation,scale, direction,up, gravity , speed ;
@@ -119,8 +122,12 @@ struct GameObject
 // Global Variables
 vector<GameObject> Blocks ;
 GameObject Camera ;
-vector<GameObject> Floor ;
+vector<GameObject> LiveFloor ;
+vector< vector<GameObject> > HiddenFloor ;
+vector< pair<int,int> > ButtonList ;
+vector<GameObject> Buttons ;
 
+map< string,int > Textures ;
 // Function Declarations
 void InitCamera(void) ;
 void UpdateCamera(void) ;
@@ -682,14 +689,14 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 	VP = Matrices.projection * Matrices.view;
 
 
-    for(auto it:Floor)
-    {
-        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
-        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
-        MVP = VP * Matrices.model;
-        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
-        draw3DObject(it.object);
-    }
+    // for(auto it:Floor)
+    // {
+    //     Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+    //     // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+    //     MVP = VP * Matrices.model;
+    //     glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+    //     draw3DObject(it.object);
+    // }
 
     // Render with texture shaders now
 	glUseProgram(textureProgramID);
@@ -734,7 +741,7 @@ void MoveCameraVetz(float direction)
 void MoveCameraRadius(float direction)
 {
     float Radius = glm::length(Camera.location) * (float)(1 + direction*0.05)  ;
-    if(Radius < 5) Radius = 5 ;
+    // if(Radius < 5) Radius = 5 ;
     Camera.location = normalize(Camera.location) * Radius  ;
     UpdateCamera() ;
 }
@@ -748,33 +755,103 @@ void CreateBlocks(int textureID)
     temp.scale = glm::vec3(temp.width,temp.length,temp.height) ;
     temp.object = createCube(textureID) ;
     temp.AxisOfRotation = glm::vec3(0,0,1) ;
-    temp.location = glm::vec3(-3,-9,-1) ;
+    // temp.location = glm::vec3(-3,-9,-1) ;
+    temp.location = glm::vec3(0,0,0) ;
     Blocks.pb(temp) ;
+}
+/**********************
+    BUTTONS
+**********************/
+void CreateButtons(void)
+{
+    GameObject temp ;
+    temp.height = TileHeight/3 ;temp.width = TileWidth/3 ;temp.length = TileLength/3 ;
+    temp.scale = glm::vec3(temp.width,temp.length,temp.height) ;
+    temp.object = createCube(Textures["Buttons"]) ;
+    temp.AxisOfRotation = glm::vec3(0,0,1) ;
+    for(auto &it : ButtonList)
+    {
+        temp.location = glm::vec3((it.first - BoardWidth/2)*TileWidth,(it.second - BoardHeight)*TileHeight,0) ;
+        Buttons.pb(temp) ;
+    }
 }
 /**********************
     FLOOR
 ***********************/
-void createFloor(void)
+// void createFloor(void)
+// {
+//     float delta = 0.05 ;
+//     GameObject temp ;
+//     temp.height = TileHeight ;temp.width = TileWidth ;temp.length = TileLength ;
+//     temp.scale = glm::vec3(temp.width - delta,temp.length - delta,temp.height) ;
+//     // temp.object = createCube() ;
+//     temp.AxisOfRotation = glm::vec3(0,0,1) ;
+//     temp.location = glm::vec3(-3,-9,-3) ;
+//     FN(x,4)
+//     {
+//         FN(y,10)
+//         {
+//             Floor.pb(temp) ;
+//             temp.location.y += temp.length ;
+//         }
+//         temp.location.y = -9 ;
+//         temp.location.x += temp.width ;
+//     }
+// }
+vector< vector<int> > GetGrid(void)
 {
-    float delta = 0.05 ;
-    GameObject temp ;
-    temp.height = TileHeight ;temp.width = TileWidth ;temp.length = TileLength ;
-    temp.scale = glm::vec3(temp.width - delta,temp.length - delta,temp.height) ;
-    // temp.object = createCube() ;
-    temp.AxisOfRotation = glm::vec3(0,0,1) ;
-    temp.location = glm::vec3(-3,-9,-3) ;
-    FN(x,4)
-    {
-        FN(y,10)
-        {
-            Floor.pb(temp) ;
-            temp.location.y += temp.length ;
-        }
-        temp.location.y = -9 ;
-        temp.location.x += temp.width ;
-    }
-}
 
+}
+void CreateFloor(void)
+{
+    LiveFloor.clear() , HiddenFloor.clear() ;
+    vector< vector<int> > Grid = GetGrid() ;
+    int mx = 0 ;
+    for(auto &vec:Grid) for(auto &it:vec) mx = max(mx,it) ;
+    HiddenFloor.resize(mx/2) ;
+
+    BoardHeight = Grid.size() , BoardWidth = Grid[0].size();
+    float delta = 0.05 ;
+
+    GameObject lblock ;
+    lblock.height = TileHeight ;lblock.width = TileWidth ;lblock.length = TileLength ;
+    lblock.scale = glm::vec3(lblock.width - delta,lblock.length - delta,lblock.height) ;
+    lblock.object = createCube(Textures["Brick"]) ;
+    lblock.AxisOfRotation = glm::vec3(0,0,1) ;
+
+    GameObject hblock ;
+    lblock.height = TileHeight ;lblock.width = TileWidth ;lblock.length = TileLength ;
+    lblock.scale = glm::vec3(lblock.width - delta,lblock.length - delta,lblock.height) ;
+    lblock.object = createCube(Textures["HiddenBrick"]) ;
+    lblock.AxisOfRotation = glm::vec3(0,0,1) ;
+
+    ButtonList.clear() ; ButtonList.resize(mx/2) ;
+    FN(i,BoardHeight) FN(j,BoardWidth)
+    {
+        if(Grid[i][j] == 1 || (Grid[i][j]%2 == 0 && Grid[i][j] > 0 ) )
+        {
+            lblock.location = glm::vec3((i - BoardWidth/2)*TileWidth,(j - BoardHeight)*TileHeight, -TileHeight) ;
+            LiveFloor.pb(lblock) ;
+        }
+        else if(Grid[i][j] > 0)
+        {
+            hblock.location = glm::vec3((i - BoardWidth/2)*TileWidth,(j - BoardHeight)*TileHeight, -TileHeight) ;
+            HiddenFloor[Grid[i][j]/2 - 1].pb(hblock) ;
+        }
+        if(Grid[i][j]%2 == 0 && Grid[i][j] > 0) ButtonList[Grid[i][j]/2 - 1] = {i,j} ;
+    }
+    CreateButtons() ;
+}
+/***************************
+    TEXTURES
+****************************/
+void LoadTextures(void)
+{
+    Textures["Box"] = createTexture("Images/res_texture.png");
+    Textures["Brick"] = createTexture("Images/res_texture.png");
+    Textures["HiddenBrick"] = createTexture("Images/res_texture.png");
+    Textures["Buttons"] = createTexture("Images/res_texture.png");
+}
 /* Initialise glfw window, I/O callbacks and the renderer to use */
 /* Nothing to Edit here */
 GLFWwindow* initGLFW (int width, int height)
@@ -833,12 +910,12 @@ void initGL (GLFWwindow* window, int width, int height)
 	textureProgramID = LoadShaders( "TextureRender.vert", "TextureRender.frag" );
 	// Get a handle for our "MVP" uniform
 	Matrices.TexMatrixID = glGetUniformLocation(textureProgramID, "MVP");
-    GLint textureID5 = createTexture("Images/middle.png");
+    LoadTextures() ;
     /* Objects should be created before any other gl function and shaders */
     // Create the models
     // rectangle = createCube() ;
     InitCamera() ;
-    CreateBlocks(textureID5) ;
+    CreateBlocks(Textures["Box"]) ;
     // createFloor();
 
     // Create and compile our GLSL program from the shaders

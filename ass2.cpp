@@ -106,7 +106,21 @@ float BoardLength ;
 int LevelNumber = 1;
 
 // Block
-float BlockRotateAngle = 0.5/M_PI ;
+float BlockRotateAngleDegree = 0.5 ;
+float BlockRotateAngle = BlockRotateAngleDegree * M_PI / (float) 180 ;
+int BlockRotationSteps = (int)( (float)90 / BlockRotateAngleDegree ) ;
+int BlockRotationStepsLeft = 0 ;
+glm::vec3 BlockRotationFixedPoint ;
+glm::vec3 BlockBodyRefPoint ;
+glm::vec3 BlockRight ;
+glm::vec3 BlockFront ;
+bool BlockRotatingUpdateH = false ;
+bool BlockRotatingUpdateV = false ;
+bool BlockRotatingH = false ;
+bool BlockRotatingV = false ;
+float BlockMoveDir = 0 ;
+// GameControls
+bool PauseGame = false ;
 struct GameObject
 {
     glm::vec3 location,AxisOfRotation,scale, direction,up, gravity , speed ;
@@ -141,6 +155,7 @@ void MoveCameraVetz(float) ;
 void MoveCameraRadius(float) ;
 glm::mat4 RotateBlock(glm::vec3 ,glm::vec3,glm::vec3) ;
 void FindAxisOfRotationR(float) ;
+void MoveBlockH(float) ;
 int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
 double last_update_time, current_time;
@@ -449,8 +464,18 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
 	case GLFW_KEY_ESCAPE:
 	    quit(window);
 	    break;
-	default:
-	    break;
+    case GLFW_KEY_P: PauseGame ^= 1 ; break ;
+    case GLFW_KEY_RIGHT : if(!BlockRotatingV && !BlockRotatingH) BlockRotatingH = true ,BlockMoveDir = 1; break ;
+    case GLFW_KEY_LEFT : if(!BlockRotatingV && !BlockRotatingH) BlockRotatingH = true ,BlockMoveDir = -1; break ;
+	default:  break;
+        }
+    }
+    else if (action == GLFW_REPEAT)
+    {
+        switch(key)
+        {
+            case GLFW_KEY_RIGHT : if(!BlockRotatingV && !BlockRotatingH) BlockRotatingH = true ,BlockMoveDir = 1; break ;
+            case GLFW_KEY_LEFT : if(!BlockRotatingV && !BlockRotatingH) BlockRotatingH = true ,BlockMoveDir = -1; break ;
         }
     }
 }
@@ -677,6 +702,7 @@ VAO* createCube (GLuint textureID)
 /* Edit this function according to your assignment */
 void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int doV, int doP)
 {
+    if(PauseGame) return ;
     int fbwidth, fbheight;
     glfwGetFramebufferSize(window, &fbwidth, &fbheight);
     glViewport((int)(x*fbwidth), (int)(y*fbheight), (int)(w*fbwidth), (int)(h*fbheight));
@@ -708,11 +734,12 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glUniform1i(glGetUniformLocation(textureProgramID, "texSampler"), 0);
 
-    FindAxisOfRotationR(1) ;
+    // FindAxisOfRotationR(1) ;
+    if(BlockRotatingH) MoveBlockH(BlockMoveDir) ;
     for(auto &it:Blocks)
     {
         Matrices.model = RotateBlock(it.direction,normalize(cross(it.up,it.direction)),it.up) * glm::scale(it.scale)     ;
-        Matrices.model = glm::translate(it.location) * Matrices.model ;
+        Matrices.model = glm::translate(it.location)* Matrices.model ;
         MVP = VP * Matrices.model;
         glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
         draw3DTexturedObject(it.object);
@@ -808,24 +835,47 @@ glm::vec3 FindRightOfBlock(void)
     return right ;
 }
 glm::vec3 FindFrontOfBlock(void) { return normalize(cross(glm::vec3(0,0,1),FindRightOfBlock())) ;}
-void FindAxisOfRotationR(float dir)
+void FindAxisOfRotationH(float dir)
 {
-    auto &Block = Blocks[0] ;
-    glm::vec3 right = FindRightOfBlock() ;
-    Block.location += right*(float)0.005 ;
-    return ;
-    glm::vec3 normal = normalize(cross(Blocks[0].direction,Blocks[0].up)) ;
-    double x = abs(dot(right,Block.direction)) , y = abs(dot(right,normal)) ,z = abs(dot(right,Block.up)) ;
-    if(y > x && y > z)
+    if(BlockRotatingUpdateH)
     {
-        glm::vec3 point = right * dir + glm::vec3(0,0,1) * ((float)-1*FindCurrentHeight()/2) ;
-        right = normalize(right + point) ;
-        Block.up = glm::rotate(Block.up + point,BlockRotateAngle,normalize(cross(right,glm::vec3(0,0,1))))  - point;
+        if( (BlockRotationStepsLeft--) == 0 ) BlockRotatingH = BlockRotatingUpdateH = false ;
+        return  ;
+    }
+    BlockRotatingUpdateH = true ; BlockRotationStepsLeft = BlockRotationSteps - 1 ;
+    auto &Block = Blocks[0] ;
+    BlockRight = FindRightOfBlock() ;
+    glm::vec3 normal = normalize(cross(Blocks[0].direction,Blocks[0].up)) ;
+    if(abs(dot(BlockRight,Block.up)) > 0.9)
+    {
+        cout<<"Right is along UP"<<endl ;
+        cout<<"current height is "<<FindCurrentHeight()<<endl ;
+        BlockBodyRefPoint = BlockRight * dir * ((TileLength + TileWidth)/2) + glm::vec3(0,0,1) * ((float)-1*FindCurrentHeight()/2) ;
+        BlockRotationFixedPoint = BlockBodyRefPoint + Block.location ;
+        cout<<"fixed point vector" ; FN(i,3) cout<<BlockRotationFixedPoint[i]<<" " ; cout<<endl ;
+    }
+    else
+    {
+        cout<<"Right is not along UP"<<endl ;
+        cout<<"current height is "<<FindCurrentHeight()<<endl ;
+        BlockBodyRefPoint = BlockRight * dir * (TileWidth/2) + glm::vec3(0,0,1) * ((float)-1*FindCurrentHeight()/2) ;
+        BlockRotationFixedPoint = BlockBodyRefPoint + Block.location ;
     }
 }
-void MoveBlock(void)
+void MoveBlockH(float dir)
 {
-
+    // cout<<"dir is "<<dir<<endl ;
+    // cout<<"BlockRotationStepsLeft = "<<BlockRotationStepsLeft<<endl ;
+    auto &Block = Blocks[0] ;
+    FindAxisOfRotationH(dir) ;
+    Block.up = glm::rotate(Block.up,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockRight)));
+    Block.direction = glm::rotate(Block.direction,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockRight))) ;
+    BlockBodyRefPoint = glm::rotate(BlockBodyRefPoint,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockRight))) ;
+    // BlockTranslation = glm::translate(fixedpoint - point) ;
+    Block.location = BlockRotationFixedPoint - BlockBodyRefPoint ;
+    cout<<"UP vector" ; FN(i,3) cout<<Block.up[i]<<" " ; cout<<endl ;
+    cout<<"direction vector" ; FN(i,3) cout<<Block.direction[i]<<" " ; cout<<endl ;
+    cout<<"location vector" ; FN(i,3) cout<<Block.location[i]<<" " ; cout<<endl ;
 }
 /**********************
     BUTTONS
@@ -1028,8 +1078,6 @@ int main (int argc, char** argv)
     /* Draw in loop */
     while (!glfwWindowShouldClose(window)) {
 
-	// clear the color and depth in the frame buffer
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // OpenGL Draw commands
 	current_time = glfwGetTime();

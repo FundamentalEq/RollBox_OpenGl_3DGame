@@ -744,7 +744,7 @@ void MoveCameraVetz(float direction)
 {
     glm::vec3 normal = normalize(cross(Camera.up,Camera.direction - Camera.location)) ;
     Camera.location = glm::rotate(Camera.location,CameraRotateAngle*direction,normal) ;
-    // Camera.up = normalize(cross(Camera.direction - Camera.location,normal)) ;
+    Camera.up = normalize(cross(Camera.direction - Camera.location,normal)) ;
     UpdateCamera() ;
 }
 void MoveCameraRadius(float direction)
@@ -765,7 +765,8 @@ void CreateBlocks(void)
     temp.scale = glm::vec3(temp.width,temp.length,temp.height) ;
     temp.object = createCube(Textures["Box"]) ;
     temp.AxisOfRotation = glm::vec3(0,0,1) ;
-    // temp.location = glm::vec3(-3,-9,-1) ;
+    temp.up = glm::vec3(0,1,0) ;
+    temp.direction = glm::vec3(-1,0,0) ;
     temp.location = glm::vec3(0,0,0) ;
     Blocks.pb(temp) ;
 }
@@ -778,6 +779,15 @@ void AlignBlock(vector<vector<int> > &Grid)
     auto it = Available[ RandomNo(sz(Available)) ] ;
     Blocks[0].location.x = (it.first - BoardWidth/2)*TileWidth;
     Blocks[0].location.y = (it.second - BoardLength/2)*TileLength ;
+}
+glm::vec3 FindFront(void)
+{
+    glm::vec3 right = normalize(cross(Camera.direction - Camera.location,Camera.up)) ;
+    if(abs(dot(right,glm::vec3(1,0,0))) > abs(dot(right,glm::vec3(0,1,0))))
+        right = glm::vec3(1,0,0) * dot(right,glm::vec3(1,0,0)) / abs(dot(right,glm::vec3(1,0,0))) ;
+    else
+        right = glm::vec3(0,1,0) * dot(right,glm::vec3(0,1,0)) / abs(dot(right,glm::vec3(0,1,0))) ;
+    return normalize(cross(glm::vec3(0,0,1),right)) ;
 }
 /**********************
     BUTTONS

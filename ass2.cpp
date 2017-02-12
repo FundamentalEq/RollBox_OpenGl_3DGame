@@ -146,8 +146,8 @@ vector<GameObject> LiveFloor ;
 vector< vector<GameObject> > HiddenFloor ;
 vector< pair<int,int> > ButtonList ;
 vector<GameObject> Buttons ;
-
 map< string,int > Textures ;
+
 // Function Declarations
 void InitCamera(void) ;
 void UpdateCamera(void) ;
@@ -156,6 +156,8 @@ void MoveCameraRadius(float) ;
 glm::mat4 RotateBlock(glm::vec3 ,glm::vec3,glm::vec3) ;
 void FindAxisOfRotationR(float) ;
 void MoveBlockH(float) ;
+void MoveBlockV(float) ;
+
 int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
 double last_update_time, current_time;
@@ -467,7 +469,9 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
     case GLFW_KEY_P: PauseGame ^= 1 ; break ;
     case GLFW_KEY_RIGHT : if(!BlockRotatingV && !BlockRotatingH) BlockRotatingH = true ,BlockMoveDir = 1; break ;
     case GLFW_KEY_LEFT : if(!BlockRotatingV && !BlockRotatingH) BlockRotatingH = true ,BlockMoveDir = -1; break ;
-	default:  break;
+    case GLFW_KEY_UP : if(!BlockRotatingV && !BlockRotatingH) BlockRotatingV = true ,BlockMoveDir = 1; break ;
+    case GLFW_KEY_DOWN : if(!BlockRotatingV && !BlockRotatingH) BlockRotatingV = true ,BlockMoveDir = -1; break ;
+    default:  break;
         }
     }
     else if (action == GLFW_REPEAT)
@@ -476,6 +480,8 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
         {
             case GLFW_KEY_RIGHT : if(!BlockRotatingV && !BlockRotatingH) BlockRotatingH = true ,BlockMoveDir = 1; break ;
             case GLFW_KEY_LEFT : if(!BlockRotatingV && !BlockRotatingH) BlockRotatingH = true ,BlockMoveDir = -1; break ;
+            case GLFW_KEY_UP : if(!BlockRotatingV && !BlockRotatingH) BlockRotatingV = true ,BlockMoveDir = 1; break ;
+            case GLFW_KEY_DOWN : if(!BlockRotatingV && !BlockRotatingH) BlockRotatingV = true ,BlockMoveDir = -1; break ;
         }
     }
 }
@@ -736,9 +742,11 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 
     // FindAxisOfRotationR(1) ;
     if(BlockRotatingH) MoveBlockH(BlockMoveDir) ;
+    if(BlockRotatingV) MoveBlockV(BlockMoveDir) ;
     for(auto &it:Blocks)
     {
         Matrices.model = RotateBlock(it.direction,normalize(cross(it.up,it.direction)),it.up) * glm::scale(it.scale)     ;
+        // Matrices.model = RotateBlock(glm::vec3(0,0,-1),glm::vec3(-1,0,0),glm::vec3(0,1,0)) * glm::scale(it.scale)     ;
         Matrices.model = glm::translate(it.location)* Matrices.model ;
         MVP = VP * Matrices.model;
         glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
@@ -809,9 +817,13 @@ void CreateBlocks(void)
 }
 glm::mat4 RotateBlock(glm::vec3 X,glm::vec3 Y,glm::vec3 Z)
 {
-    glm::vec4 row1(X.x,Y.x,Z.x,0) ;
-    glm::vec4 row2(X.y,Y.y,Z.y,0) ;
-    glm::vec4 row3(X.z,Y.z,Z.z,0) ;
+    // glm::vec4 row1(X.x,Y.x,Z.x,0) ;
+    // glm::vec4 row2(X.y,Y.y,Z.y,0) ;
+    // glm::vec4 row3(X.z,Y.z,Z.z,0) ;
+    // glm::vec4 row4(0,0,0,1) ;
+    glm::vec4 row1(X.x,X.y,X.z,0) ;
+    glm::vec4 row2(Y.x,Y.y,Y.z,0) ;
+    glm::vec4 row3(Z.x,Z.y,Z.z,0) ;
     glm::vec4 row4(0,0,0,1) ;
     return glm::mat4(row1,row2,row3,row4) ;
 }
@@ -853,16 +865,16 @@ void FindAxisOfRotationH(float dir)
     glm::vec3 normal = normalize(cross(Blocks[0].direction,Blocks[0].up)) ;
     if(abs(dot(BlockRight,Block.up)) > 0.9)
     {
-        cout<<"Right is along UP"<<endl ;
-        cout<<"current height is "<<FindCurrentHeight()<<endl ;
+        // cout<<"Right is along UP"<<endl ;
+        // cout<<"current height is "<<FindCurrentHeight()<<endl ;
         BlockBodyRefPoint = BlockRight * dir * ((TileLength + TileWidth)/2) + glm::vec3(0,0,1) * ((float)-1*FindCurrentHeight()/2) ;
         BlockRotationFixedPoint = BlockBodyRefPoint + Block.location ;
-        cout<<"fixed point vector" ; FN(i,3) cout<<BlockRotationFixedPoint[i]<<" " ; cout<<endl ;
+        // cout<<"fixed point vector" ; FN(i,3) cout<<BlockRotationFixedPoint[i]<<" " ; cout<<endl ;
     }
     else
     {
-        cout<<"Right is not along UP"<<endl ;
-        cout<<"current height is "<<FindCurrentHeight()<<endl ;
+        // cout<<"Right is not along UP"<<endl ;
+        // cout<<"current height is "<<FindCurrentHeight()<<endl ;
         BlockBodyRefPoint = BlockRight * dir * (TileWidth/2) + glm::vec3(0,0,1) * ((float)-1*FindCurrentHeight()/2) ;
         BlockRotationFixedPoint = BlockBodyRefPoint + Block.location ;
     }
@@ -887,12 +899,66 @@ void MoveBlockH(float dir)
             Block.location[i] = CorrectNumbers(Block.location[i]) ;
         }
     }
+    // cout<<"UP vector" ; FN(i,3) cout<<Block.up[i]<<" " ; cout<<endl ;
+    // cout<<"direction vector" ; FN(i,3) cout<<Block.direction[i]<<" " ; cout<<endl ;
+    // cout<<"location vector" ; FN(i,3) cout<<Block.location[i]<<" " ; cout<<endl ;
+}
+
+void FindAxisOfRotationV(float dir)
+{
+    if(BlockRotatingUpdateV)
+    {
+        if( (BlockRotationStepsLeft--) == 0 ) BlockRotatingV = BlockRotatingUpdateV = false ;
+        return  ;
+    }
+    BlockRotatingUpdateV = true ; BlockRotationStepsLeft = BlockRotationSteps - 1 ;
+    auto &Block = Blocks[0] ;
+    BlockFront = FindFrontOfBlock() ;
+    cout<<"Front is " ; FN(i,3) cout<<BlockFront[i]<<" " ; cout<<endl ;
+    glm::vec3 normal = normalize(cross(Blocks[0].direction,Blocks[0].up)) ;
+    if(abs(dot(BlockFront,Block.up)) > 0.9)
+    {
+        cout<<"Front is along UP"<<endl ;
+        cout<<"current height is "<<FindCurrentHeight()<<endl ;
+        BlockBodyRefPoint = BlockFront * dir * ((TileLength + TileWidth)/2) + glm::vec3(0,0,1) * ((float)-1*FindCurrentHeight()/2) ;
+        BlockRotationFixedPoint = BlockBodyRefPoint + Block.location ;
+        cout<<"fixed point vector" ; FN(i,3) cout<<BlockRotationFixedPoint[i]<<" " ; cout<<endl ;
+    }
+    else
+    {
+        cout<<"Front is not along UP"<<endl ;
+        cout<<"current height is "<<FindCurrentHeight()<<endl ;
+        BlockBodyRefPoint = BlockFront * dir * (TileWidth/2) + glm::vec3(0,0,1) * ((float)-1*FindCurrentHeight()/2) ;
+        BlockRotationFixedPoint = BlockBodyRefPoint + Block.location ;
+        cout<<"fixed point vector" ; FN(i,3) cout<<BlockRotationFixedPoint[i]<<" " ; cout<<endl ;
+
+    }
+}
+void MoveBlockV(float dir)
+{
+    // cout<<"dir is "<<dir<<endl ;
+    // cout<<"BlockRotationStepsLeft = "<<BlockRotationStepsLeft<<endl ;
+    auto &Block = Blocks[0] ;
+    FindAxisOfRotationV(dir) ;
+    cout<<"Axis of rotation is " ; FN(i,3) cout<<normalize(cross(glm::vec3(0,0,1),BlockFront))[i]<<" " ; cout<<endl ;
+    Block.up = glm::rotate(Block.up,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockFront)));
+    Block.direction = glm::rotate(Block.direction,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockFront))) ;
+    BlockBodyRefPoint = glm::rotate(BlockBodyRefPoint,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockFront))) ;
+    // BlockTranslation = glm::translate(fixedpoint - point) ;
+    Block.location = BlockRotationFixedPoint - BlockBodyRefPoint ;
+    if(!BlockRotatingUpdateV)
+    {
+        FN(i,3)
+        {
+            Block.up[i] = CorrectNumbers(Block.up[i]) ;
+            Block.direction[i] = CorrectNumbers(Block.direction[i]) ;
+            Block.location[i] = CorrectNumbers(Block.location[i]) ;
+        }
+    }
     cout<<"UP vector" ; FN(i,3) cout<<Block.up[i]<<" " ; cout<<endl ;
     cout<<"direction vector" ; FN(i,3) cout<<Block.direction[i]<<" " ; cout<<endl ;
     cout<<"location vector" ; FN(i,3) cout<<Block.location[i]<<" " ; cout<<endl ;
 }
-
-
 /**********************
     BUTTONS
 **********************/

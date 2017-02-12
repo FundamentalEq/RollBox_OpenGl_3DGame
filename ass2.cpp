@@ -106,7 +106,7 @@ float BoardLength ;
 int LevelNumber = 1;
 
 // Block
-float BlockRotateAngleDegree = 0.5 ;
+float BlockRotateAngleDegree = 5 ;
 float BlockRotateAngle = BlockRotateAngleDegree * M_PI / (float) 180 ;
 int BlockRotationSteps = (int)( (float)90 / BlockRotateAngleDegree ) ;
 int BlockRotationStepsLeft = 0 ;
@@ -118,6 +118,7 @@ bool BlockRotatingUpdateH = false ;
 bool BlockRotatingUpdateV = false ;
 bool BlockRotatingH = false ;
 bool BlockRotatingV = false ;
+bool BlockIsFalling = false ;
 float BlockMoveDir = 0 ;
 // GameControls
 bool PauseGame = false ;
@@ -157,6 +158,7 @@ glm::mat4 RotateBlock(glm::vec3 ,glm::vec3,glm::vec3) ;
 void FindAxisOfRotationR(float) ;
 void MoveBlockH(float) ;
 void MoveBlockV(float) ;
+void CheckFall(void) ;
 
 int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
@@ -709,10 +711,11 @@ VAO* createCube (GLuint textureID)
 void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int doV, int doP)
 {
     if(PauseGame) return ;
+    if(!BlockRotatingH && !BlockRotatingV) CheckFall() ;
+
     int fbwidth, fbheight;
     glfwGetFramebufferSize(window, &fbwidth, &fbheight);
     glViewport((int)(x*fbwidth), (int)(y*fbheight), (int)(w*fbwidth), (int)(h*fbheight));
-
 
     // use the loaded shader program
     // Don't change unless you know what you are doing
@@ -881,14 +884,11 @@ void FindAxisOfRotationH(float dir)
 }
 void MoveBlockH(float dir)
 {
-    // cout<<"dir is "<<dir<<endl ;
-    // cout<<"BlockRotationStepsLeft = "<<BlockRotationStepsLeft<<endl ;
     auto &Block = Blocks[0] ;
     FindAxisOfRotationH(dir) ;
     Block.up = glm::rotate(Block.up,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockRight)));
     Block.direction = glm::rotate(Block.direction,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockRight))) ;
     BlockBodyRefPoint = glm::rotate(BlockBodyRefPoint,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockRight))) ;
-    // BlockTranslation = glm::translate(fixedpoint - point) ;
     Block.location = BlockRotationFixedPoint - BlockBodyRefPoint ;
     if(!BlockRotatingUpdateH)
     {
@@ -899,9 +899,6 @@ void MoveBlockH(float dir)
             Block.location[i] = CorrectNumbers(Block.location[i]) ;
         }
     }
-    // cout<<"UP vector" ; FN(i,3) cout<<Block.up[i]<<" " ; cout<<endl ;
-    // cout<<"direction vector" ; FN(i,3) cout<<Block.direction[i]<<" " ; cout<<endl ;
-    // cout<<"location vector" ; FN(i,3) cout<<Block.location[i]<<" " ; cout<<endl ;
 }
 
 void FindAxisOfRotationV(float dir)
@@ -914,24 +911,16 @@ void FindAxisOfRotationV(float dir)
     BlockRotatingUpdateV = true ; BlockRotationStepsLeft = BlockRotationSteps - 1 ;
     auto &Block = Blocks[0] ;
     BlockFront = FindFrontOfBlock() ;
-    cout<<"Front is " ; FN(i,3) cout<<BlockFront[i]<<" " ; cout<<endl ;
     glm::vec3 normal = normalize(cross(Blocks[0].direction,Blocks[0].up)) ;
     if(abs(dot(BlockFront,Block.up)) > 0.9)
     {
-        cout<<"Front is along UP"<<endl ;
-        cout<<"current height is "<<FindCurrentHeight()<<endl ;
         BlockBodyRefPoint = BlockFront * dir * ((TileLength + TileWidth)/2) + glm::vec3(0,0,1) * ((float)-1*FindCurrentHeight()/2) ;
         BlockRotationFixedPoint = BlockBodyRefPoint + Block.location ;
-        cout<<"fixed point vector" ; FN(i,3) cout<<BlockRotationFixedPoint[i]<<" " ; cout<<endl ;
     }
     else
     {
-        cout<<"Front is not along UP"<<endl ;
-        cout<<"current height is "<<FindCurrentHeight()<<endl ;
         BlockBodyRefPoint = BlockFront * dir * (TileWidth/2) + glm::vec3(0,0,1) * ((float)-1*FindCurrentHeight()/2) ;
         BlockRotationFixedPoint = BlockBodyRefPoint + Block.location ;
-        cout<<"fixed point vector" ; FN(i,3) cout<<BlockRotationFixedPoint[i]<<" " ; cout<<endl ;
-
     }
 }
 void MoveBlockV(float dir)
@@ -940,7 +929,6 @@ void MoveBlockV(float dir)
     // cout<<"BlockRotationStepsLeft = "<<BlockRotationStepsLeft<<endl ;
     auto &Block = Blocks[0] ;
     FindAxisOfRotationV(dir) ;
-    cout<<"Axis of rotation is " ; FN(i,3) cout<<normalize(cross(glm::vec3(0,0,1),BlockFront))[i]<<" " ; cout<<endl ;
     Block.up = glm::rotate(Block.up,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockFront)));
     Block.direction = glm::rotate(Block.direction,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockFront))) ;
     BlockBodyRefPoint = glm::rotate(BlockBodyRefPoint,BlockRotateAngle*dir,normalize(cross(glm::vec3(0,0,1),BlockFront))) ;
@@ -955,9 +943,22 @@ void MoveBlockV(float dir)
             Block.location[i] = CorrectNumbers(Block.location[i]) ;
         }
     }
-    cout<<"UP vector" ; FN(i,3) cout<<Block.up[i]<<" " ; cout<<endl ;
-    cout<<"direction vector" ; FN(i,3) cout<<Block.direction[i]<<" " ; cout<<endl ;
-    cout<<"location vector" ; FN(i,3) cout<<Block.location[i]<<" " ; cout<<endl ;
+}
+/*********************
+    FALL DETECTION
+**********************/
+void CheckFall(void)
+{
+    auto &Block = Blocks[0] ;
+    bool fall = true ;
+    for(auto &tile:LiveFloor)
+        if(abs(Block.location.x - tile.location.x) <= (TileLength/2) && abs(Block.location.y - tile.location.y) <= (TileWidth/2) )
+        {
+            fall = false ;
+            break ;
+        }
+    if(fall) cout<<"Block should fall"<<endl ;
+    else cout<<"Block will not fall"<<endl ;
 }
 /**********************
     BUTTONS

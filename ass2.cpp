@@ -104,6 +104,9 @@ float BoardLength ;
 
 // Levels
 int LevelNumber = 1;
+
+// Block
+float BlockRotateAngle = 0.5/M_PI ;
 struct GameObject
 {
     glm::vec3 location,AxisOfRotation,scale, direction,up, gravity , speed ;
@@ -137,7 +140,7 @@ void UpdateCamera(void) ;
 void MoveCameraVetz(float) ;
 void MoveCameraRadius(float) ;
 glm::mat4 RotateBlock(glm::vec3 ,glm::vec3,glm::vec3) ;
-
+void FindAxisOfRotationR(float) ;
 int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
 double last_update_time, current_time;
@@ -705,6 +708,7 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glUniform1i(glGetUniformLocation(textureProgramID, "texSampler"), 0);
 
+    FindAxisOfRotationR(1) ;
     for(auto &it:Blocks)
     {
         Matrices.model = RotateBlock(it.direction,normalize(cross(it.up,it.direction)),it.up) * glm::scale(it.scale)     ;
@@ -766,7 +770,7 @@ void CreateBlocks(void)
     temp.scale = glm::vec3(temp.width,temp.length,temp.height) ;
     temp.object = createCube(Textures["Box"]) ;
     temp.AxisOfRotation = glm::vec3(0,0,1) ;
-    temp.up = glm::vec3(0,1,0) ;
+    temp.up = glm::vec3(0,0,1) ;
     temp.direction = glm::vec3(-1,0,0) ;
     temp.location = glm::vec3(0,0,0) ;
     Blocks.pb(temp) ;
@@ -789,19 +793,39 @@ void AlignBlock(vector<vector<int> > &Grid)
     Blocks[0].location.x = (it.first - BoardWidth/2)*TileWidth;
     Blocks[0].location.y = (it.second - BoardLength/2)*TileLength ;
 }
-glm::vec3 FindFrontOfBlock(void)
+float FindCurrentHeight(void)
+{
+    if(abs(dot(glm::vec3(0,0,1),Blocks[0].up))> 0.9) return TileLength + TileWidth ;
+    else return TileWidth ;
+}
+glm::vec3 FindRightOfBlock(void)
 {
     glm::vec3 right = normalize(cross(Camera.direction - Camera.location,Camera.up)) ;
     if(abs(dot(right,glm::vec3(1,0,0))) > abs(dot(right,glm::vec3(0,1,0))))
         right = glm::vec3(1,0,0) * dot(right,glm::vec3(1,0,0)) / abs(dot(right,glm::vec3(1,0,0))) ;
     else
         right = glm::vec3(0,1,0) * dot(right,glm::vec3(0,1,0)) / abs(dot(right,glm::vec3(0,1,0))) ;
-    return normalize(cross(glm::vec3(0,0,1),right)) ;
+    return right ;
+}
+glm::vec3 FindFrontOfBlock(void) { return normalize(cross(glm::vec3(0,0,1),FindRightOfBlock())) ;}
+void FindAxisOfRotationR(float dir)
+{
+    auto &Block = Blocks[0] ;
+    glm::vec3 right = FindRightOfBlock() ;
+    Block.location += right*(float)0.005 ;
+    return ;
+    glm::vec3 normal = normalize(cross(Blocks[0].direction,Blocks[0].up)) ;
+    double x = abs(dot(right,Block.direction)) , y = abs(dot(right,normal)) ,z = abs(dot(right,Block.up)) ;
+    if(y > x && y > z)
+    {
+        glm::vec3 point = right * dir + glm::vec3(0,0,1) * ((float)-1*FindCurrentHeight()/2) ;
+        right = normalize(right + point) ;
+        Block.up = glm::rotate(Block.up + point,BlockRotateAngle,normalize(cross(right,glm::vec3(0,0,1))))  - point;
+    }
 }
 void MoveBlock(void)
 {
-    glm::vec3 front = FindFrontOfBlock() ;
-    glm::vec3 normal = normalize(cross(Blocks[0].direction,Blocks[0].up)) ;
+
 }
 /**********************
     BUTTONS

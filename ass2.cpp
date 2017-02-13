@@ -792,7 +792,7 @@ void InitCamera(void)
 void UpdateCamera(void) {  Matrices.view = glm::lookAt(Camera.location,Camera.direction,Camera.up); }
 void MoveCameraHoz(float direction)
 {
-    Camera.location = glm::rotate(Camera.location,CameraRotateAngle*direction,glm::vec3(0,0,1)) ;
+    Camera.location = glm::rotate(Camera.location,CameraRotateAngle*direction,Camera.up) ;
     UpdateCamera() ;
 }
 void MoveCameraVetz(float direction)

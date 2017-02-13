@@ -14,6 +14,7 @@
 #include <SOIL/SOIL.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
+#include <FTGL/ftgl.h>
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
@@ -1195,7 +1196,7 @@ void LoadTextures(void)
 {
     Textures["Box"] = createTexture("Images/res_texture.png");
     Textures["Brick"] = createTexture("Images/Brick.jpg");
-    Textures["HiddenBrick"] = createTexture("Images/res_texture.png");
+    Textures["HiddenBrick"] = createTexture("Images/hiddenbrick.png");
     Textures["Button"] = createTexture("Images/button.jpg");
     Textures["SkylineBox"] = createTexture("Images/sky.png");
 }

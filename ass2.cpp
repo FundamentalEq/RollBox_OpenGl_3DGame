@@ -95,6 +95,8 @@ float CameraRotateAngle  = 5 * M_PI / (float) 180 ;
 float CameraSphereRadius = 10 ;
 deque< glm::vec3 > BlockPrevLocation ;
 bool FollowCamView = false ;
+bool HelliCamView = false ;
+glm::vec3 MousePrevPosition ;
 
 // Tiles
 float TileWidth = 2 ;
@@ -124,8 +126,10 @@ bool BlockRotatingV = false ;
 bool BlockIsFalling = false ;
 float BlockFallingSpeed = 0.05 ;
 float BlockMoveDir = 0 ;
+
 // GameControls
 bool PauseGame = false ;
+
 struct GameObject
 {
     glm::vec3 location,AxisOfRotation,scale, direction,up, gravity , speed ;
@@ -169,6 +173,9 @@ void BlockFall(void) ;
 void SetTopView(void) ;
 void SetTowerView(void) ;
 void SetFollowCamView(void) ;
+void SetHeliCam(GLFWwindow*) ;
+glm::vec3 GetMouseCoordinates(GLFWwindow*) ;
+
 
 int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
@@ -532,10 +539,14 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
 void mouseButton (GLFWwindow* window, int button, int action, int mods)
 {
     switch (button) {
-    case GLFW_MOUSE_BUTTON_RIGHT:
-	if (action == GLFW_RELEASE) {
-	    // rectangle_rot_dir *= -1;
+    case GLFW_MOUSE_BUTTON_LEFT:
+	if (action == GLFW_PRESS)
+    {
+        FollowCamView = false ;
+        HelliCamView = true ;
+        MousePrevPosition = GetMouseCoordinates(window) ;
 	}
+    else if(action == GLFW_RELEASE) HelliCamView = false ;
 	break;
     default:
 	break;
@@ -544,19 +555,8 @@ void mouseButton (GLFWwindow* window, int button, int action, int mods)
 
 void mousescroll(GLFWwindow* window, double xoffset, double yoffset)
 {
-    // if (yoffset==-1) {
-    //     camera_fov*=1.1;
-    // }
-    // else if(yoffset==1){
-    //     camera_fov/=1.1; //make it bigger than current size
-    // }
-    // if(camera_fov>=2){
-    // 	camera_fov=2;
-    // }
-    // if(camera_fov<=0.5){
-    // 	camera_fov=0.5;
-    // }
-    // reshapeWindow(window,700,1400);
+    if (yoffset==-1) MoveCameraRadius(1) ;
+    else if(yoffset==1) MoveCameraRadius(-1) ;
 }
 /* Executed when window is resized to 'width' and 'height' */
 /* Modify the bounds of the screen here in glm::ortho or Field of View in glm::Perspective */
@@ -739,6 +739,7 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
     glm::mat4 MVP;	// MVP = Projection * View * Model
 
     if(FollowCamView) SetFollowCamView() ;
+    if(HelliCamView) SetHeliCam(window) ;
     VP = Matrices.projection * Matrices.view;
 
 
@@ -845,6 +846,19 @@ void SetFollowCamView(void)
     // Camera.up = glm::vec3(0,0,1) ;
     Camera.direction = Block.location ;
     UpdateCamera() ;
+}
+glm::vec3 GetMouseCoordinates(GLFWwindow* window)
+{
+    double CursorX,CursorY ;
+    glfwGetCursorPos(window, &CursorX, &CursorY) ;
+    return glm::vec3(CursorX,CursorY,0) ;
+}
+void SetHeliCam(GLFWwindow* window)
+{
+    float suppress = 1000 ;
+    glm::vec3 Mouse = GetMouseCoordinates(window) ;
+    MoveCameraHoz(-(Mouse.x - MousePrevPosition.x)/suppress) ;
+    MoveCameraVetz((Mouse.y - MousePrevPosition.y)/suppress) ;
 }
 /************************
     BLOCKS

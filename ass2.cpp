@@ -126,6 +126,7 @@ bool BlockRotatingV = false ;
 bool BlockIsFalling = false ;
 float BlockFallingSpeed = 0.05 ;
 float BlockMoveDir = 0 ;
+bool BlockHasMoved = false ;
 
 // GameControls
 bool PauseGame = false ;
@@ -155,6 +156,7 @@ vector<GameObject> LiveFloor ;
 vector< vector<GameObject> > HiddenFloor ;
 vector< pair<int,int> > ButtonList ;
 vector<GameObject> Buttons ;
+vector<bool> ButtonHasBeenPressed ;
 map< string,int > Textures ;
 vector<GameObject> SkylineBox;
 
@@ -177,7 +179,7 @@ void SetHeliCam(GLFWwindow*) ;
 glm::vec3 GetMouseCoordinates(GLFWwindow*) ;
 void SetBlockView(void) ;
 float FindCurrentHeight(void) ;
-
+void CheckButtonPress(void) ;
 
 int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
@@ -727,7 +729,7 @@ VAO* createCube (GLuint textureID)
 void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int doV, int doP)
 {
     if(PauseGame) return ;
-    if(!BlockRotatingH && !BlockRotatingV) CheckFall() ;
+    if(!BlockRotatingH && !BlockRotatingV && BlockHasMoved) CheckFall() ;
 
     int fbwidth, fbheight;
     glfwGetFramebufferSize(window, &fbwidth, &fbheight);
@@ -790,6 +792,24 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
         MVP = VP * Matrices.model;
         glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
         draw3DTexturedObject(it.object);
+    }
+    for(auto &it:Buttons)
+    {
+        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        MVP = VP * Matrices.model;
+        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        draw3DTexturedObject(it.object);
+    }
+    FN(i,sz(ButtonHasBeenPressed)) if(ButtonHasBeenPressed[i])
+    {
+        for(auto &it:HiddenFloor[i])
+        {
+            Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+            MVP = VP * Matrices.model;
+            glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+            draw3DTexturedObject(it.object);
+        }
     }
 }
 /************************
@@ -975,6 +995,7 @@ void MoveBlockH(float dir)
         }
         BlockPrevLocation.pb(Block.location) ;
         if(sz(BlockPrevLocation)) BlockPrevLocation.pop_front() ;
+        BlockHasMoved = true ;
     }
 }
 
@@ -1021,6 +1042,7 @@ void MoveBlockV(float dir)
         }
         BlockPrevLocation.pb(Block.location) ;
         if(sz(BlockPrevLocation)) BlockPrevLocation.pop_front() ;
+        BlockHasMoved = true ;
     }
 }
 void BlockFall(void)
@@ -1034,6 +1056,7 @@ void BlockFall(void)
 **********************/
 void CheckFall(void)
 {
+    BlockHasMoved = false ;
     auto &Block = Blocks[0] ;
     bool fall = true ;
     for(auto &tile:LiveFloor)
@@ -1042,7 +1065,19 @@ void CheckFall(void)
             fall = false ;
             break ;
         }
+    FN(i,sz(ButtonHasBeenPressed)) if(ButtonHasBeenPressed[i])
+    {
+        for(auto &tile:HiddenFloor[i])
+            if(abs(Block.location.x - tile.location.x) <= (TileLength/2) && abs(Block.location.y - tile.location.y) <= (TileWidth/2) )
+            {
+                fall = false ;
+                break ;
+            }
+        if(!fall) break ;
+    }
+
     if(fall) BlockIsFalling = true ;
+    else CheckButtonPress() ;
     // else cout<<"Block will not fall"<<endl ;
 }
 /**********************
@@ -1051,15 +1086,28 @@ void CheckFall(void)
 void CreateButtons(void)
 {
     GameObject temp ;
-    temp.height = TileHeight/3 ;temp.width = TileWidth/3 ;temp.length = TileLength/3 ;
+    temp.height = TileHeight/1.5 ;temp.width = TileWidth/3 ;temp.length = TileLength/3 ;
     temp.scale = glm::vec3(temp.width,temp.length,temp.height) ;
-    temp.object = createCube(Textures["Box"]) ;
+    temp.object = createCube(Textures["Button"]) ;
     temp.AxisOfRotation = glm::vec3(0,0,1) ;
     for(auto &it : ButtonList)
     {
         temp.location = glm::vec3((it.first - BoardWidth/2)*TileWidth,(it.second - BoardLength/2)*TileLength,-(TileLength+TileWidth)/2) ;
         Buttons.pb(temp) ;
     }
+    ButtonHasBeenPressed.clear() ;
+    ButtonHasBeenPressed.resize(sz(Buttons),false) ;
+    ButtonList.clear() ;
+}
+void CheckButtonPress(void)
+{
+    auto &Block = Blocks[0] ;
+    FN(i,sz(Buttons))
+        if(abs(Block.location.x - Buttons[i].location.x) <= (TileLength/2) && abs(Block.location.y - Buttons[i].location.y) <= (TileWidth/2))
+        {
+            cout<<"Button " << i <<" has been pressed"<<endl ;
+            ButtonHasBeenPressed[i] = ButtonHasBeenPressed[i] ^ true ;
+        }
 }
 /**********************
     FLOOR
@@ -1148,7 +1196,7 @@ void LoadTextures(void)
     Textures["Box"] = createTexture("Images/res_texture.png");
     Textures["Brick"] = createTexture("Images/Brick.jpg");
     Textures["HiddenBrick"] = createTexture("Images/res_texture.png");
-    Textures["Buttons"] = createTexture("Images/res_texture.png");
+    Textures["Button"] = createTexture("Images/button.jpg");
     Textures["SkylineBox"] = createTexture("Images/sky.png");
 }
 /* Initialise glfw window, I/O callbacks and the renderer to use */

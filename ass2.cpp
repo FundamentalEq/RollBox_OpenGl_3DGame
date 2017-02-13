@@ -175,6 +175,8 @@ void SetTowerView(void) ;
 void SetFollowCamView(void) ;
 void SetHeliCam(GLFWwindow*) ;
 glm::vec3 GetMouseCoordinates(GLFWwindow*) ;
+void SetBlockView(void) ;
+float FindCurrentHeight(void) ;
 
 
 int do_rot, floor_rel;;
@@ -530,6 +532,7 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
     case 't' : FollowCamView = false ; SetTopView() ; break ;
     case 'y' : FollowCamView = false ;SetTowerView() ; break ;
     case 'f' : FollowCamView = true ; break ;
+    case 'b' : SetBlockView() ; break ;
     default:
 	break;
     }
@@ -859,6 +862,14 @@ void SetHeliCam(GLFWwindow* window)
     glm::vec3 Mouse = GetMouseCoordinates(window) ;
     MoveCameraHoz(-(Mouse.x - MousePrevPosition.x)/suppress) ;
     MoveCameraVetz((Mouse.y - MousePrevPosition.y)/suppress) ;
+}
+void SetBlockView(void)
+{
+    auto &Block = Blocks[0] ;
+    Camera.location = Block.location + glm::vec3(0,0,1) * FindCurrentHeight() ;
+    Camera.direction = glm::vec3(0,0,0) ;
+    Camera.up = normalize(glm::vec3(0,0,1) - (Camera.direction - Camera.location) * dot(glm::vec3(0,0,1),(Camera.direction - Camera.location))) ;
+    UpdateCamera() ;
 }
 /************************
     BLOCKS

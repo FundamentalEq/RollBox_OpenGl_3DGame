@@ -738,7 +738,6 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
 
     // use the loaded shader program
     // Don't change unless you know what you are doing
-    glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(programID);
 
     glm::mat4 VP;
@@ -813,6 +812,69 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
         }
     }
 }
+void draw2(GLFWwindow* window, float x, float y, float w, float h, int doM, int doV, int doP)
+{
+    int fbwidth, fbheight;
+    glfwGetFramebufferSize(window, &fbwidth, &fbheight);
+    glViewport((int)(x*fbwidth), (int)(y*fbheight), (int)(w*fbwidth), (int)(h*fbheight));
+    glUseProgram(programID);
+
+    glm::mat4 VP;
+    glm::mat4 MVP;	// MVP = Projection * View * Model
+
+    VP = Matrices.projection * Matrices.view;
+
+	glUseProgram(textureProgramID);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glUniform1i(glGetUniformLocation(textureProgramID, "texSampler"), 0);
+
+    for(auto &it:Blocks)
+    {
+        Matrices.model = RotateBlock(it.direction,normalize(cross(it.up,it.direction)),it.up) * glm::scale(it.scale)     ;
+        // Matrices.model = RotateBlock(glm::vec3(0,0,-1),glm::vec3(-1,0,0),glm::vec3(0,1,0)) * glm::scale(it.scale)     ;
+        Matrices.model = glm::translate(it.location)* Matrices.model ;
+        MVP = VP * Matrices.model;
+        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        draw3DTexturedObject(it.object);
+    }
+
+    for(auto &it:LiveFloor)
+    {
+        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        MVP = VP * Matrices.model;
+        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        draw3DTexturedObject(it.object);
+    }
+    for(auto &it:SkylineBox)
+    {
+        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        MVP = VP * Matrices.model;
+        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        draw3DTexturedObject(it.object);
+    }
+    for(auto &it:Buttons)
+    {
+        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        MVP = VP * Matrices.model;
+        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        draw3DTexturedObject(it.object);
+    }
+    FN(i,sz(ButtonHasBeenPressed)) if(ButtonHasBeenPressed[i])
+    {
+        for(auto &it:HiddenFloor[i])
+        {
+            Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+            MVP = VP * Matrices.model;
+            glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+            draw3DTexturedObject(it.object);
+        }
+    }
+}
+
 /************************
     CAMERA
 *************************/
@@ -1317,9 +1379,13 @@ int main (int argc, char** argv)
 	if(do_rot) MoveCameraHoz(1) ;
 
 
-
+    glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     last_update_time = current_time;
     draw(window,0,0,1,1, 1, 1, 1);
+    GameObject OldCamera = Camera ;
+    SetTopView() ;
+    draw2(window,0.75,0.75,0.25,0.25, 1, 1, 1);
+    Camera = OldCamera ; UpdateCamera() ;
         glfwSwapBuffers(window);
 
         // Poll for Keyboard and mouse events

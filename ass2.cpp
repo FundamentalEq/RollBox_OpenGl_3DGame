@@ -164,6 +164,7 @@ void MoveBlockV(float) ;
 void CheckFall(void) ;
 void BlockFall(void) ;
 void SetTopView(void) ;
+void SetTowerView(void) ;
 
 int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
@@ -516,6 +517,7 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
     case 'j' : MoveCameraRadius(-1) ; break ;
     case 'k' : MoveCameraRadius(1) ; break ;
     case 't' : SetTopView() ; break ;
+    case 'y' : SetTowerView() ; break ;
     default:
 	break;
     }
@@ -816,6 +818,14 @@ void SetTopView(void)
 {
     Camera.location = glm::vec3(0,0,CameraSphereRadius)  ;
     Camera.up = glm::vec3(0,1,0) ;
+    Camera.direction = glm::vec3(0,0,0) ;
+    UpdateCamera() ;
+}
+void SetTowerView(void)
+{
+    Camera.location = normalize(glm::vec3(0,-1,1)) * CameraSphereRadius ;
+    Camera.up = normalize(cross(Camera.location,glm::vec3(1,0,0))) ;
+    Camera.direction = glm::vec3(0,0,0) ;
     UpdateCamera() ;
 }
 /************************

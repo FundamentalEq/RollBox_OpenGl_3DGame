@@ -90,7 +90,7 @@ COLOR white = {255/255.0,255/255.0,255/255.0};
 COLOR score = {117/255.0,78/255.0,40/255.0};
 
 // Camera
-float CameraRotateAngle  = 0.5/M_PI ;
+float CameraRotateAngle  = 5 * M_PI / (float) 180 ;
 float CameraSphereRadius = 10 ;
 
 // Tiles
@@ -155,6 +155,7 @@ vector<GameObject> SkylineBox;
 void InitCamera(void) ;
 void UpdateCamera(void) ;
 void MoveCameraVetz(float) ;
+void MoveCameraHoz(float) ;
 void MoveCameraRadius(float) ;
 glm::mat4 RotateBlock(glm::vec3 ,glm::vec3,glm::vec3) ;
 void FindAxisOfRotationR(float) ;
@@ -162,6 +163,7 @@ void MoveBlockH(float) ;
 void MoveBlockV(float) ;
 void CheckFall(void) ;
 void BlockFall(void) ;
+void SetTopView(void) ;
 
 int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
@@ -508,11 +510,12 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
     case 'n' :
     MoveCameraVetz(1) ;
     break ;
-    case 'm' :
-    MoveCameraVetz(-1) ;
-    break ;
+    case 'm' :  MoveCameraVetz(-1) ; break ;
+    case ',' :  MoveCameraHoz(1) ; break ;
+    case '.' :  MoveCameraHoz(-1) ; break ;
     case 'j' : MoveCameraRadius(-1) ; break ;
     case 'k' : MoveCameraRadius(1) ; break ;
+    case 't' : SetTopView() ; break ;
     default:
 	break;
     }
@@ -804,9 +807,15 @@ void MoveCameraVetz(float direction)
 }
 void MoveCameraRadius(float direction)
 {
-    float Radius = glm::length(Camera.location) * (float)(1 + direction*0.05)  ;
+    CameraSphereRadius = glm::length(Camera.location - Camera.direction) * (float)(1 + direction*0.05)  ;
     // if(Radius < 5) Radius = 5 ;
-    Camera.location = normalize(Camera.location) * Radius  ;
+    Camera.location = normalize(Camera.location -Camera.direction) * CameraSphereRadius + Camera.direction  ;
+    UpdateCamera() ;
+}
+void SetTopView(void)
+{
+    Camera.location = glm::vec3(0,0,CameraSphereRadius)  ;
+    Camera.up = glm::vec3(0,1,0) ;
     UpdateCamera() ;
 }
 /************************
@@ -975,8 +984,8 @@ void CheckFall(void)
             fall = false ;
             break ;
         }
-    if(fall) cout<<"Block should fall"<<endl ,BlockIsFalling = true ;
-    else cout<<"Block will not fall"<<endl ;
+    if(fall) BlockIsFalling = true ;
+    // else cout<<"Block will not fall"<<endl ;
 }
 /**********************
     BUTTONS

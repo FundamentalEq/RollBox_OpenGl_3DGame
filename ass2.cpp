@@ -3,6 +3,7 @@
 #include <fstream>
 #include <vector>
 #include <map>
+#include <deque>
 #include <string>
 #include <cmath>
 #include <time.h>
@@ -92,6 +93,8 @@ COLOR score = {117/255.0,78/255.0,40/255.0};
 // Camera
 float CameraRotateAngle  = 5 * M_PI / (float) 180 ;
 float CameraSphereRadius = 10 ;
+deque< glm::vec3 > BlockPrevLocation ;
+bool FollowCamView = false ;
 
 // Tiles
 float TileWidth = 2 ;
@@ -165,6 +168,7 @@ void CheckFall(void) ;
 void BlockFall(void) ;
 void SetTopView(void) ;
 void SetTowerView(void) ;
+void SetFollowCamView(void) ;
 
 int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
@@ -516,8 +520,9 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
     case '.' :  MoveCameraHoz(-1) ; break ;
     case 'j' : MoveCameraRadius(-1) ; break ;
     case 'k' : MoveCameraRadius(1) ; break ;
-    case 't' : SetTopView() ; break ;
-    case 'y' : SetTowerView() ; break ;
+    case 't' : FollowCamView = false ; SetTopView() ; break ;
+    case 'y' : FollowCamView = false ;SetTowerView() ; break ;
+    case 'f' : FollowCamView = true ; break ;
     default:
 	break;
     }
@@ -733,7 +738,8 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
     glm::mat4 VP;
     glm::mat4 MVP;	// MVP = Projection * View * Model
 
-	VP = Matrices.projection * Matrices.view;
+    if(FollowCamView) SetFollowCamView() ;
+    VP = Matrices.projection * Matrices.view;
 
 
     // for(auto it:Floor)
@@ -828,6 +834,18 @@ void SetTowerView(void)
     Camera.direction = glm::vec3(0,0,0) ;
     UpdateCamera() ;
 }
+void SetFollowCamView(void)
+{
+    auto &Block = Blocks[0] ;
+    glm::vec3 displacement = normalize( BlockPrevLocation.front() - Block.location ) ;
+    Camera.location =  displacement * CameraSphereRadius + Block.location ;
+    Camera.location.z = abs(Camera.location.z) ;
+    displacement = Block.location - Camera.location ;
+    Camera.up = normalize(glm::vec3(0,0,1) - (displacement) * dot(glm::vec3(0,0,1),displacement)) ;
+    // Camera.up = glm::vec3(0,0,1) ;
+    Camera.direction = Block.location ;
+    UpdateCamera() ;
+}
 /************************
     BLOCKS
 *************************/
@@ -870,6 +888,7 @@ void AlignBlock(vector<vector<int> > &Grid)
     auto it = Available[ RandomNo(sz(Available)) ] ;
     Blocks[0].location.x = (it.first - BoardWidth/2)*TileWidth;
     Blocks[0].location.y = (it.second - BoardLength/2)*TileLength ;
+    BlockPrevLocation.pb(Blocks[0].location) ;
 }
 float FindCurrentHeight(void)
 {
@@ -929,6 +948,8 @@ void MoveBlockH(float dir)
             Block.direction[i] = CorrectNumbers(Block.direction[i]) ;
             Block.location[i] = CorrectNumbers(Block.location[i]) ;
         }
+        BlockPrevLocation.pb(Block.location) ;
+        if(sz(BlockPrevLocation)) BlockPrevLocation.pop_front() ;
     }
 }
 
@@ -973,6 +994,8 @@ void MoveBlockV(float dir)
             Block.direction[i] = CorrectNumbers(Block.direction[i]) ;
             Block.location[i] = CorrectNumbers(Block.location[i]) ;
         }
+        BlockPrevLocation.pb(Block.location) ;
+        if(sz(BlockPrevLocation)) BlockPrevLocation.pop_front() ;
     }
 }
 void BlockFall(void)
@@ -1098,9 +1121,7 @@ void CreateSkylineBox(void)
 void LoadTextures(void)
 {
     Textures["Box"] = createTexture("Images/res_texture.png");
-    cout<<"Box "<<Textures["Box"]<<endl  ;
     Textures["Brick"] = createTexture("Images/Brick.jpg");
-    cout<<"Brick "<<Textures["Brick"]<<endl  ;
     Textures["HiddenBrick"] = createTexture("Images/res_texture.png");
     Textures["Buttons"] = createTexture("Images/res_texture.png");
     Textures["SkylineBox"] = createTexture("Images/sky.png");
@@ -1167,6 +1188,8 @@ void initGL (GLFWwindow* window, int width, int height)
     /* Objects should be created before any other gl function and shaders */
     // Create the models
     // rectangle = createCube() ;
+    // for follow cam view
+    BlockPrevLocation.pb(glm::vec3(1,0,0)) ;
     InitCamera() ;
     CreateBlocks() ;
     CreateFloor();

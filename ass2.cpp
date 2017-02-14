@@ -187,11 +187,8 @@ float FindCurrentHeight(void) ;
 void CheckButtonPress(void) ;
 void SetGame(void) ;
 
-int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
 double last_update_time, current_time;
-glm::vec3 rect_pos, floor_pos;
-float rectangle_rotation = 0;
 
 /* Function to load Shaders - Use it as it is */
 GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path) {
@@ -281,17 +278,6 @@ void quit(GLFWwindow *window)
     glfwTerminate();
     exit(EXIT_SUCCESS);
 }
-
-// void initGLEW(void){
-//     glewExperimental = GL_TRUE;
-//     if(glewInit()!=GLEW_OK){
-// 	fprintf(stderr,"Glew failed to initialize : %s\n", glewGetErrorString(glewInit()));
-//     }
-//     if(!GLEW_VERSION_3_3)
-// 	fprintf(stderr, "3.3 version not available\n");
-// }
-
-
 
 /* Generate VAO, VBOs and return VAO handle */
 struct VAO* create3DObject (GLenum primitive_mode, int numVertices, const GLfloat* vertex_buffer_data, const GLfloat* color_buffer_data, GLenum fill_mode=GL_FILL)
@@ -482,16 +468,7 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
     }
     if (action == GLFW_RELEASE) {
         switch (key) {
-	case GLFW_KEY_C:
-	    // rectangle_rot_status = !rectangle_rot_status;
-	    break;
-	case GLFW_KEY_P:
-	    break;
-	case GLFW_KEY_X:
-	    // do something ..
-	    break;
-	default:
-	    break;
+            default : break ;
         }
     }
     else if (action == GLFW_PRESS) {
@@ -524,19 +501,8 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
 {
     if(PauseGame) return ;
     switch (key) {
-    case 'Q':
-    case 'q':
-	quit(window);
-	break;
-    case 'e':
-	rectangle_rotation += 1;
-	break;
-    case ' ':
-	do_rot ^= 1;
-	break;
-    case 'n' :
-    MoveCameraVetz(1) ;
-    break ;
+    case 'Q':  case 'q': quit(window); 	break;
+    case 'n' : MoveCameraVetz(1) ;   break ;
     case 'm' :  MoveCameraVetz(-1) ; break ;
     case ',' :  MoveCameraHoz(1) ; break ;
     case '.' :  MoveCameraHoz(-1) ; break ;
@@ -557,14 +523,14 @@ void mouseButton (GLFWwindow* window, int button, int action, int mods)
     if(PauseGame) return ;
     switch (button) {
     case GLFW_MOUSE_BUTTON_LEFT:
-	if (action == GLFW_PRESS)
-    {
-        FollowCamView = false ;
-        HelliCamView = true ;
-        MousePrevPosition = GetMouseCoordinates(window) ;
-	}
-    else if(action == GLFW_RELEASE) HelliCamView = false ;
-	break;
+	   if (action == GLFW_PRESS)
+       {
+           FollowCamView = false ;
+           HelliCamView = true ;
+           MousePrevPosition = GetMouseCoordinates(window) ;
+	    }
+        else if(action == GLFW_RELEASE) HelliCamView = false ;
+	     break;
     default:
 	break;
     }
@@ -595,8 +561,6 @@ void reshapeWindow (GLFWwindow* window, int width, int height)
     // Ortho projection for 2D views
     //Matrices.projection = glm::ortho(-4.0f, 4.0f, -4.0f, 4.0f, 0.1f, 500.0f);
 }
-
-VAO *rectangle, *cam, *floor_vao;
 
 // Creates the rectangle object used in this sample code
 VAO* createCube (GLuint textureID)
@@ -1434,10 +1398,6 @@ int main (int argc, char** argv)
 {
     int width = 600;
     int height = 600;
-    rect_pos = glm::vec3(0, 0, 0);
-    floor_pos = glm::vec3(0, 0, 0);
-    do_rot = 0;
-    floor_rel = 1;
     srand(glfwGetTime()) ;
     GLFWwindow* window = initGLFW(width, height);
     // initGLEW();

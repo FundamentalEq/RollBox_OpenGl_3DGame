@@ -14,7 +14,7 @@
 #include <SOIL/SOIL.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
-#include <FTGL/ftgl.h>
+// #include <FTGL/ftgl.h>
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
@@ -103,13 +103,16 @@ glm::vec3 MousePrevPosition ;
 float TileWidth = 2 ;
 float TileLength = 2 ;
 float TileHeight = 0.2 ;
+glm::vec3 WinLoc(0,0,0) ;
 
 // Board
 float BoardWidth ;
 float BoardLength ;
 
 // Levels
+bool GameWon = false ;
 int LevelNumber = 1;
+double GameWinningTime ;
 
 // Block
 float BlockRotateAngleDegree = 5 ;
@@ -160,6 +163,7 @@ vector<GameObject> Buttons ;
 vector<bool> ButtonHasBeenPressed ;
 map< string,int > Textures ;
 vector<GameObject> SkylineBox;
+vector<GameObject> FragileFloor ;
 
 // Function Declarations
 void InitCamera(void) ;
@@ -181,6 +185,7 @@ glm::vec3 GetMouseCoordinates(GLFWwindow*) ;
 void SetBlockView(void) ;
 float FindCurrentHeight(void) ;
 void CheckButtonPress(void) ;
+void SetGame(void) ;
 
 int do_rot, floor_rel;;
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
@@ -729,7 +734,13 @@ VAO* createCube (GLuint textureID)
 /* Edit this function according to your assignment */
 void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int doV, int doP)
 {
-    if(PauseGame) return ;
+    if(current_time - GameWinningTime > 5 && GameWon)
+    {
+        BlockIsFalling = false ;
+        GameWon = false ;
+        ++LevelNumber ;
+        SetGame() ;
+    }
     if(!BlockRotatingH && !BlockRotatingV && BlockHasMoved) CheckFall() ;
 
     int fbwidth, fbheight;
@@ -811,6 +822,14 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
             draw3DTexturedObject(it.object);
         }
     }
+    for(auto &it:FragileFloor) if(it.fixed)
+    {
+        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        MVP = VP * Matrices.model;
+        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        draw3DTexturedObject(it.object);
+    }
 }
 void draw2(GLFWwindow* window, float x, float y, float w, float h, int doM, int doV, int doP)
 {
@@ -872,6 +891,14 @@ void draw2(GLFWwindow* window, float x, float y, float w, float h, int doM, int 
             glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
             draw3DTexturedObject(it.object);
         }
+    }
+    for(auto &it:FragileFloor) if(it.fixed)
+    {
+        Matrices.model = glm::translate(it.location) * glm::scale(it.scale);
+        // Matrices.model = glm::rotate((float)(rectangle_rotation*M_PI/180.0f),it.AxisOfRotation) ;
+        MVP = VP * Matrices.model;
+        glUniformMatrix4fv(Matrices.MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        draw3DTexturedObject(it.object);
     }
 }
 
@@ -1138,8 +1165,23 @@ void CheckFall(void)
             }
         if(!fall) break ;
     }
-
-    if(fall) BlockIsFalling = true ;
+    for(auto &tile:FragileFloor)
+        if(abs(Block.location.x - tile.location.x) <= (TileLength/2) && abs(Block.location.y - tile.location.y) <= (TileWidth/2) )
+        {
+            if(FindCurrentHeight() == (TileLength + TileWidth)) tile.fixed = false ;
+            else fall = false ;
+            break ;
+        }
+    if(fall)
+    {
+        if(abs(Block.location.x - WinLoc.x) <= (TileLength/2) && abs(Block.location.y - WinLoc.y) <= (TileWidth/2) )
+        {
+            cout<<"Game Won"<<endl ;
+            GameWon = true ;
+            GameWinningTime = glfwGetTime();
+        }
+        BlockIsFalling = true ;
+    }
     else CheckButtonPress() ;
     // else cout<<"Block will not fall"<<endl ;
 }
@@ -1181,7 +1223,7 @@ vector< vector<int> > GetGrid(void)
     ifstream in(FileName.c_str()) ;
     if(!in.is_open())
     {
-        cout<<"Unable to open Level file"<<endl ;
+        cout<<"ConGo U have COmpleted the Game.!!!Winner!!!"<<endl ;
         exit(0) ;
     }
     int rows = 0 , cols = 0 ,temp = 0 ;
@@ -1197,7 +1239,7 @@ vector< vector<int> > GetGrid(void)
 }
 void CreateFloor(void)
 {
-    LiveFloor.clear() , HiddenFloor.clear() ;
+    LiveFloor.clear() , HiddenFloor.clear() ; FragileFloor.clear() ;
     vector< vector<int> > Grid = GetGrid() ;
     int mx = 0 ;
     for(auto &vec:Grid) for(auto &it:vec) mx = max(mx,it) ;
@@ -1218,7 +1260,14 @@ void CreateFloor(void)
     hblock.object = createCube(Textures["HiddenBrick"]) ;
     hblock.AxisOfRotation = glm::vec3(0,0,1) ;
 
-    ButtonList.clear() ; ButtonList.resize(mx/2) ;
+    GameObject fblock ;
+    fblock.height = TileHeight ;fblock.width = TileWidth ;fblock.length = TileLength ;
+    fblock.scale = glm::vec3(fblock.width - delta,fblock.length - delta,fblock.height) ;
+    fblock.object = createCube(Textures["FragileBrick"]) ;
+    fblock.AxisOfRotation = glm::vec3(0,0,1) ;
+    fblock.fixed = true ;
+
+    ButtonList.clear() ; Buttons.clear() ; ButtonList.resize(mx/2) ;
     FN(i,BoardLength) FN(j,BoardWidth)
     {
         if(Grid[i][j] == 1 || (Grid[i][j]%2 == 0 && Grid[i][j] > 0 ) )
@@ -1231,6 +1280,14 @@ void CreateFloor(void)
             hblock.location = glm::vec3((i - BoardWidth/2)*TileWidth,(j - BoardLength/2)*TileLength, -(TileLength + TileWidth)/2 - TileHeight/2) ;
             HiddenFloor[Grid[i][j]/2 - 1].pb(hblock) ;
         }
+        else if(Grid[i][j] == -1)
+        {
+            fblock.location = glm::vec3((i - BoardWidth/2)*TileWidth,(j - BoardLength/2)*TileLength, -(TileLength + TileWidth)/2 - TileHeight/2) ;
+            FragileFloor.pb(fblock) ;
+        }
+        else if(Grid[i][j] == -2)
+            WinLoc = glm::vec3((i - BoardWidth/2)*TileWidth,(j - BoardLength/2)*TileLength, -(TileLength + TileWidth)/2 - TileHeight/2) ;
+
         if(Grid[i][j]%2 == 0 && Grid[i][j] > 0) ButtonList[Grid[i][j]/2 - 1] = {i,j} ;
     }
     CreateButtons() ;
@@ -1261,6 +1318,19 @@ void LoadTextures(void)
     Textures["HiddenBrick"] = createTexture("Images/hiddenbrick.png");
     Textures["Button"] = createTexture("Images/button.jpg");
     Textures["SkylineBox"] = createTexture("Images/sky.png");
+    Textures["FragileBrick"] = createTexture("Images/fragilebrick.jpg");
+}
+/***************************
+    GAME
+***************************/
+void SetGame(void)
+{
+    Blocks.clear() ;
+    BlockPrevLocation.clear() ;
+    BlockPrevLocation.pb(glm::vec3(1,0,0)) ;
+    InitCamera() ;
+    CreateBlocks() ;
+    CreateFloor();
 }
 /* Initialise glfw window, I/O callbacks and the renderer to use */
 /* Nothing to Edit here */
@@ -1325,10 +1395,7 @@ void initGL (GLFWwindow* window, int width, int height)
     // Create the models
     // rectangle = createCube() ;
     // for follow cam view
-    BlockPrevLocation.pb(glm::vec3(1,0,0)) ;
-    InitCamera() ;
-    CreateBlocks() ;
-    CreateFloor();
+    SetGame() ;
     CreateSkylineBox() ;
     // Create and compile our GLSL program from the shaders
 	programID = LoadShaders( "shader.vert", "shader.frag" );

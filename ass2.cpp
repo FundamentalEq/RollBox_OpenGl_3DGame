@@ -475,7 +475,11 @@ GLuint createTexture (const char* filename)
 void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     // Function is called first on GLFW_PRESS.
-
+    if(PauseGame)
+    {
+        if(action == GLFW_PRESS && key == GLFW_KEY_P) PauseGame ^= 1 ;
+        return ;
+    }
     if (action == GLFW_RELEASE) {
         switch (key) {
 	case GLFW_KEY_C:
@@ -518,6 +522,7 @@ void keyboard (GLFWwindow* window, int key, int scancode, int action, int mods)
 /* Executed for character input (like in text boxes) */
 void keyboardChar (GLFWwindow* window, unsigned int key)
 {
+    if(PauseGame) return ;
     switch (key) {
     case 'Q':
     case 'q':
@@ -549,6 +554,7 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
 /* Executed when a mouse button is pressed/released */
 void mouseButton (GLFWwindow* window, int button, int action, int mods)
 {
+    if(PauseGame) return ;
     switch (button) {
     case GLFW_MOUSE_BUTTON_LEFT:
 	if (action == GLFW_PRESS)
@@ -566,6 +572,7 @@ void mouseButton (GLFWwindow* window, int button, int action, int mods)
 
 void mousescroll(GLFWwindow* window, double xoffset, double yoffset)
 {
+    if(PauseGame) return ;
     if (yoffset==-1) MoveCameraRadius(1) ;
     else if(yoffset==1) MoveCameraRadius(-1) ;
 }
@@ -1443,8 +1450,6 @@ int main (int argc, char** argv)
 
         // OpenGL Draw commands
 	current_time = glfwGetTime();
-	if(do_rot) MoveCameraHoz(1) ;
-
 
     glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     last_update_time = current_time;
@@ -1453,10 +1458,11 @@ int main (int argc, char** argv)
     SetTopView() ;
     draw2(window,0.75,0.75,0.25,0.25, 1, 1, 1);
     Camera = OldCamera ; UpdateCamera() ;
-        glfwSwapBuffers(window);
+    glfwSwapBuffers(window);
 
         // Poll for Keyboard and mouse events
         glfwPollEvents();
+        while(PauseGame) glfwPollEvents();
     }
 
     glfwTerminate();

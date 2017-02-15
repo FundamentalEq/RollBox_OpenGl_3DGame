@@ -136,6 +136,9 @@ bool BlockHasMoved = false ;
 // GameControls
 bool PauseGame = false ;
 
+// Score
+int NumberOfSteps = 0 ;
+
 struct GameObject
 {
     glm::vec3 location,AxisOfRotation,scale, direction,up, gravity , speed ;
@@ -1059,6 +1062,9 @@ void MoveBlockH(float dir)
         BlockPrevLocation.pb(Block.location) ;
         if(sz(BlockPrevLocation)) BlockPrevLocation.pop_front() ;
         BlockHasMoved = true ;
+        ++NumberOfSteps ;
+        cout<<"Level : "<<LevelNumber<<endl ;
+        cout<<"Steps Taken Till Now : "<<NumberOfSteps<<endl ;
     }
 }
 
@@ -1106,6 +1112,9 @@ void MoveBlockV(float dir)
         BlockPrevLocation.pb(Block.location) ;
         if(sz(BlockPrevLocation)) BlockPrevLocation.pop_front() ;
         BlockHasMoved = true ;
+        ++NumberOfSteps ;
+        cout<<"Level : "<<LevelNumber<<endl ;
+        cout<<"Steps Taken Till Now : "<<NumberOfSteps<<endl ;
     }
 }
 void BlockFall(void)
@@ -1162,33 +1171,40 @@ void CheckFall(void)
     else if(BlockBase < 2 && FindCurrentHeight() < (TileLength + TileWidth))
     {
         // Check If the block is at the edge
-        cout<<"BlockBase "<<BlockBase<<endl ;
+        // cout<<"BlockBase "<<BlockBase<<endl ;
         glm::vec3 Center1 = Block.location + Block.up * ((TileLength + TileWidth)/4) ;
         glm::vec3 Center2 = Block.location - Block.up * ((TileLength + TileWidth)/4) ;
-        if((Center1.x/TileLength + BoardLength/2) > (BoardLength - 1) || (Center1.y/TileWidth + BoardWidth/2) > (BoardWidth - 1)) BlockAtEdge = true ;
-        if((Center2.x/TileLength + BoardLength/2) > (BoardLength - 1)  || (Center2.y/TileWidth + BoardWidth/2) > (BoardWidth - 1)) BlockAtEdge = true ;
+        if((Center1.x/TileLength + BoardLength/2) > (BoardLength - 1)
+            || (Center1.x/TileLength + BoardLength/2) < 0
+            || (Center1.y/TileWidth + BoardWidth/2) > (BoardWidth - 1)
+            || (Center1.y/TileWidth + BoardWidth/2) < 0 ) BlockAtEdge = true ;
+
+        if((Center2.x/TileLength + BoardLength/2) > (BoardLength - 1)
+            || (Center2.x/TileLength + BoardLength/2) < 0
+            || (Center2.y/TileWidth + BoardWidth/2) > (BoardWidth - 1)
+            || (Center2.y/TileWidth + BoardWidth/2) < 0) BlockAtEdge = true ;
         // Block at the edge.! Block Must fall
         if(BlockAtEdge)
         {
-            cout<<"Block At Edge"<<endl ;
+            // cout<<"Block At Edge"<<endl ;
             glm::vec3 right = FindRightOfBlock() , front = FindFrontOfBlock() ;
             if(abs(dot(Block.up,right)) > 0.9)
             {
-                cout<<"Force Moving along H"<<endl ;
+                // cout<<"Force Moving along H"<<endl ;
                 BlockRotatingH = true ;
                 if(dot(right,glm::vec3(0,0,0) - Block.location) > 0 ) BlockMoveDir = -1 ;
                 else BlockMoveDir = 1 ;
             }
             else
             {
-                cout<<"Force Moving along V"<<endl ;
+                // cout<<"Force Moving along V"<<endl ;
                 BlockRotatingV = true ;
                 if(dot(front,glm::vec3(0,0,0) - Block.location) > 0 ) BlockMoveDir = -1 ;
                 else BlockMoveDir = 1 ;
             }
         }
     }
-    if(!fall && !BlockAtEdge) CheckButtonPress() ;
+    if(!fall) CheckButtonPress() ;
     // else cout<<"Block will not fall"<<endl ;
 }
 /**********************
@@ -1216,7 +1232,7 @@ void CheckButtonPress(void)
     FN(i,sz(Buttons))
         if(abs(Block.location.x - Buttons[i].location.x) <= (TileLength/2) && abs(Block.location.y - Buttons[i].location.y) <= (TileWidth/2))
         {
-            cout<<"Button " << i <<" has been pressed"<<endl ;
+            // cout<<"Button " << i <<" has been pressed"<<endl ;
             ButtonHasBeenPressed[i] = ButtonHasBeenPressed[i] ^ true ;
         }
 }
@@ -1337,6 +1353,9 @@ void SetGame(void)
     InitCamera() ;
     CreateBlocks() ;
     CreateFloor();
+    NumberOfSteps = 0 ;
+    cout<<"Level : "<<LevelNumber<<endl ;
+    cout<<"Steps Taken Till Now : "<<NumberOfSteps<<endl ;
 }
 /* Initialise glfw window, I/O callbacks and the renderer to use */
 /* Nothing to Edit here */

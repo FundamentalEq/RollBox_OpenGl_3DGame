@@ -1120,19 +1120,23 @@ void CheckFall(void)
     BlockHasMoved = false ;
     auto &Block = Blocks[0] ;
     bool fall = true ;
+    int BlockBase = 0 ;
+    bool BlockAtEdge = false ;
     for(auto &tile:LiveFloor)
         if(abs(Block.location.x - tile.location.x) <= (TileLength/2) && abs(Block.location.y - tile.location.y) <= (TileWidth/2) )
         {
+            ++BlockBase ;
             fall = false ;
-            break ;
+            // break ;
         }
     FN(i,sz(ButtonHasBeenPressed)) if(ButtonHasBeenPressed[i])
     {
         for(auto &tile:HiddenFloor[i])
             if(abs(Block.location.x - tile.location.x) <= (TileLength/2) && abs(Block.location.y - tile.location.y) <= (TileWidth/2) )
             {
+                ++BlockBase ;
                 fall = false ;
-                break ;
+                // break ;
             }
         if(!fall) break ;
     }
@@ -1140,8 +1144,8 @@ void CheckFall(void)
         if(abs(Block.location.x - tile.location.x) <= (TileLength/2) && abs(Block.location.y - tile.location.y) <= (TileWidth/2) )
         {
             if(FindCurrentHeight() == (TileLength + TileWidth)) tile.fixed = false ;
-            else fall = false ;
-            break ;
+            else fall = false , ++BlockBase ;
+            // break ;
         }
     if(fall)
     {
@@ -1153,7 +1157,36 @@ void CheckFall(void)
         }
         BlockIsFalling = true ;
     }
-    else CheckButtonPress() ;
+    else if(BlockBase < 2 && FindCurrentHeight() < (TileLength + TileWidth))
+    {
+        // Check If the block is at the edge
+        cout<<"BlockBase "<<BlockBase<<endl ;
+        glm::vec3 Center1 = Block.location + Block.up * ((TileLength + TileWidth)/4) ;
+        glm::vec3 Center2 = Block.location - Block.up * ((TileLength + TileWidth)/4) ;
+        if((Center1.x/TileLength + BoardLength/2) > (BoardLength - 1) || (Center1.y/TileWidth + BoardWidth/2) > (BoardWidth - 1)) BlockAtEdge = true ;
+        if((Center2.x/TileLength + BoardLength/2) > (BoardLength - 1)  || (Center2.y/TileWidth + BoardWidth/2) > (BoardWidth - 1)) BlockAtEdge = true ;
+        // Block at the edge.! Block Must fall
+        if(BlockAtEdge)
+        {
+            cout<<"Block At Edge"<<endl ;
+            glm::vec3 right = FindRightOfBlock() , front = FindFrontOfBlock() ;
+            if(abs(dot(Block.up,right)) > 0.9)
+            {
+                cout<<"Force Moving along H"<<endl ;
+                BlockRotatingH = true ;
+                if(dot(right,glm::vec3(0,0,0) - Block.location) > 0 ) BlockMoveDir = -1 ;
+                else BlockMoveDir = 1 ;
+            }
+            else
+            {
+                cout<<"Force Moving along V"<<endl ;
+                BlockRotatingV = true ;
+                if(dot(front,glm::vec3(0,0,0) - Block.location) > 0 ) BlockMoveDir = -1 ;
+                else BlockMoveDir = 1 ;
+            }
+        }
+    }
+    if(!fall && !BlockAtEdge) CheckButtonPress() ;
     // else cout<<"Block will not fall"<<endl ;
 }
 /**********************

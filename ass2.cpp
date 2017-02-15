@@ -8,6 +8,9 @@
 #include <cmath>
 #include <time.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include <ao/ao.h>
+#include <string.h>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -143,6 +146,11 @@ int NumberOfSteps = 0 ;
 int ScreenHeight = 600 ;
 int ScreenWidth = 600 ;
 
+// Sound
+static const int BUF_SIZE = 4096;
+int lost ;
+pthread_t Writer_thr[3];
+
 struct GameObject
 {
     glm::vec3 location,AxisOfRotation,scale, direction,up, gravity , speed ;
@@ -160,6 +168,21 @@ struct GameObject
         object = NULL ;
     }
 } ;
+
+struct WavHeader {
+    char id[4]; //should contain RIFF
+    int32_t totalLength;
+    char wavefmt[8];
+    int32_t format; // 16 for PCM
+    int16_t pcm; // 1 for PCM
+    int16_t channels;
+    int32_t frequency;
+    int32_t bytesPerSecond;
+    int16_t bytesByCapture;
+    int16_t bitsPerSample;
+    char data[4]; // "data"
+    int32_t bytesInData;
+};
 
 // Global Variables
 vector<GameObject> Blocks ;
@@ -199,6 +222,75 @@ void MoveBlockMouse(GLFWwindow*) ;
 
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
 double last_update_time, current_time;
+
+void* Writer(void * i)
+{
+	ao_device* device;
+    ao_sample_format format;
+    int defaultDriver;
+    WavHeader header;
+
+    std::ifstream file;
+    file.open("Sea Waves-SoundBible.com-946156036.wav", std::ios::binary | std::ios::in);
+
+    file.read(header.id, sizeof(header.id));
+    //assert(!std::memcmp(header.id, "RIFF", 4)); //is it a WAV file?
+    file.read((char*)&header.totalLength, sizeof(header.totalLength));
+    file.read(header.wavefmt, sizeof(header.wavefmt)); //is it the right format?
+    //assert(!std::memcmp(header.wavefmt, "WAVEfmt ", 8));
+    file.read((char*)&header.format, sizeof(header.format));
+    file.read((char*)&header.pcm, sizeof(header.pcm));
+    file.read((char*)&header.channels, sizeof(header.channels));
+    file.read((char*)&header.frequency, sizeof(header.frequency));
+    file.read((char*)&header.bytesPerSecond, sizeof(header.bytesPerSecond));
+    file.read((char*)&header.bytesByCapture, sizeof(header.bytesByCapture));
+    file.read((char*)&header.bitsPerSample, sizeof(header.bitsPerSample));
+    file.read(header.data, sizeof(header.data));
+    file.read((char*)&header.bytesInData, sizeof(header.bytesInData));
+
+    ao_initialize();
+
+    defaultDriver = ao_default_driver_id();
+
+    memset(&format, 0, sizeof(format));
+    format.bits = header.format;
+    format.channels = header.channels;
+    format.rate = header.frequency;
+    format.byte_format = AO_FMT_LITTLE;
+
+    device = ao_open_live(defaultDriver, &format, NULL);
+    if (device == NULL) {
+        std::cout << "Unable to open driver" << std::endl;
+        //return;
+    }
+
+
+    char* buffer = (char*)malloc(BUF_SIZE * sizeof(char));
+
+    // determine how many BUF_SIZE chunks are in file
+    int fSize = header.bytesInData;
+    int bCount = fSize / BUF_SIZE;
+
+    for (int i = 0; i < bCount; ++i) {
+        file.read(buffer, BUF_SIZE);
+				if(lost==1) {ao_close(device);
+		    ao_shutdown();pthread_exit((void *)NULL);}
+        ao_play(device, buffer, BUF_SIZE);
+    }
+
+    int leftoverBytes = fSize % BUF_SIZE;
+  //  std::cout << leftoverBytes;
+    file.read(buffer, leftoverBytes);
+    memset(buffer + leftoverBytes, 0, BUF_SIZE - leftoverBytes);
+		if(lost==1) {ao_close(device);
+    ao_shutdown();pthread_exit((void *)NULL);}
+    ao_play(device, buffer, BUF_SIZE);
+
+    ao_close(device);
+    ao_shutdown();
+
+
+}
 
 /* Function to load Shaders - Use it as it is */
 GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path) {
@@ -1287,6 +1379,7 @@ vector< vector<int> > GetGrid(void)
     if(!in.is_open())
     {
         cout<<"ConGo U have COmpleted the Game.!!!Winner!!!"<<endl ;
+        pthread_join(Writer_thr[1],NULL);
         exit(0) ;
     }
     int rows = 0 , cols = 0 ,temp = 0 ;
@@ -1414,7 +1507,7 @@ GLFWwindow* initGLFW (int width, int height)
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	window = glfwCreateWindow(width, height, "Sample OpenGL 3.3 Application", NULL, NULL);
+	window = glfwCreateWindow(width, height, "Shake The Block", NULL, NULL);
 
 	if (!window) {
 		glfwTerminate();
@@ -1495,7 +1588,7 @@ int main (int argc, char** argv)
     GLFWwindow* window = initGLFW(ScreenWidth, ScreenHeight);
     // initGLEW();
     initGL (window, ScreenWidth,ScreenHeight);
-
+    pthread_create(&Writer_thr[1],NULL,Writer,(void*) NULL);
     last_update_time = glfwGetTime();
     /* Draw in loop */
     while (!glfwWindowShouldClose(window)) {
@@ -1517,7 +1610,7 @@ int main (int argc, char** argv)
         glfwPollEvents();
         while(PauseGame) glfwPollEvents();
     }
-
+    pthread_join(Writer_thr[1],NULL);
     glfwTerminate();
     //    exit(EXIT_SUCCESS);
 }

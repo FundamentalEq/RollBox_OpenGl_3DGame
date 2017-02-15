@@ -195,6 +195,7 @@ float FindCurrentHeight(void) ;
 void CheckButtonPress(void) ;
 void SetGame(void) ;
 glm::vec3 GetBlockScreenCor(void) ;
+void MoveBlockMouse(GLFWwindow*) ;
 
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
 double last_update_time, current_time;
@@ -539,7 +540,10 @@ void mouseButton (GLFWwindow* window, int button, int action, int mods)
            MousePrevPosition = GetMouseCoordinates(window) ;
 	    }
         else if(action == GLFW_RELEASE) HelliCamView = false ;
-	     break;
+	    break;
+    case GLFW_MOUSE_BUTTON_RIGHT :
+        if(action == GLFW_PRESS && !BlockRotatingH && !BlockRotatingV && !BlockIsFalling) MoveBlockMouse(window) ;
+        break ;
     default:
 	break;
     }
@@ -714,7 +718,6 @@ VAO* createCube (GLuint textureID)
 /* Edit this function according to your assignment */
 void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int doV, int doP)
 {
-    GetMouseCoordinates(window) ;
     if(current_time - GameWinningTime > 5 && GameWon)
     {
         BlockIsFalling = false ;
@@ -947,8 +950,6 @@ glm::vec3 GetMouseCoordinates(GLFWwindow* window)
     double CursorX,CursorY ;
     glfwGetCursorPos(window, &CursorX, &CursorY) ;
     cout<<"Mouse is "<<CursorX<<" "<<CursorY<<endl ;
-    glm::vec3 b = GetBlockScreenCor() ;
-    cout<<"Block is at "<<b.x<<" "<<b.y<<endl ;
     return glm::vec3(CursorX,CursorY,0) ;
 }
 void SetHeliCam(GLFWwindow* window)
@@ -1132,16 +1133,36 @@ void BlockFall(void)
     Block.location.z -= BlockFallingSpeed ;
     if(abs(Block.location.z) >= 2*CameraSphereRadius) Block.location.z = 2*CameraSphereRadius ;
 }
-// mat4 ToDouble()
 glm::vec3 GetBlockScreenCor(void)
 {
     auto &Block = Blocks[0] ;
     glm::mat4 model = RotateBlock(Block.direction,normalize(cross(Block.up,Block.direction)),Block.up) * glm::scale(Block.scale)     ;
     model = glm::translate(Block.location)* model ;
     glm::vec3 point = glm::vec3(model * glm::vec4(Block.location,1.0f)) ;
-    point = glm::project(point,Matrices.view,Matrices.projection,glm::vec4(0,0,ScreenWidth,ScreenHeight)) ;
-    point.x = ScreenWidth - point.x ;
+    point = glm::project(glm::vec3(0,0,0),Matrices.view,Matrices.projection,glm::vec4(0,0,ScreenWidth,ScreenHeight)) ;
+    // cout<<"Points " ; FN(i,3) cout<<point[i]<<" " ; cout<<endl ;
+    // point.x = ScreenWidth - point.x ;
     return point;
+}
+void MoveBlockMouse(GLFWwindow *window)
+{
+    // cout<<"Function Called"<<endl ;
+    glm::vec3 Mouse = GetMouseCoordinates(window) ;
+    glm::vec3 Block  = GetBlockScreenCor() ;
+    glm::vec3 displacement = normalize(Mouse - Block) ;
+    // cout<<"Displacement is " ; FN(i,3) cout<<displacement[i]<<" " ; cout<<endl ;
+    if(abs(dot(displacement,glm::vec3(1,0,0))) > abs(dot(displacement,glm::vec3(0,1,0))))
+    {
+        BlockRotatingH = true ;
+        if(displacement.x > 0) BlockMoveDir = 1 ;
+        if(displacement.x < 0) BlockMoveDir = -1 ;
+    }
+    else
+    {
+        BlockRotatingV = true ;
+        if(displacement.y > 0) BlockMoveDir = -1 ;
+        if(displacement.y < 0) BlockMoveDir = 1 ;
+    }
 }
 /*********************
     FALL DETECTION

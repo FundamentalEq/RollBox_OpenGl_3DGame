@@ -139,6 +139,10 @@ bool PauseGame = false ;
 // Score
 int NumberOfSteps = 0 ;
 
+// Screen
+int ScreenHeight = 600 ;
+int ScreenWidth = 600 ;
+
 struct GameObject
 {
     glm::vec3 location,AxisOfRotation,scale, direction,up, gravity , speed ;
@@ -190,6 +194,7 @@ void SetBlockView(void) ;
 float FindCurrentHeight(void) ;
 void CheckButtonPress(void) ;
 void SetGame(void) ;
+glm::vec3 GetBlockScreenCor(void) ;
 
 GLuint programID, waterProgramID, fontProgramID, textureProgramID;
 double last_update_time, current_time;
@@ -709,6 +714,7 @@ VAO* createCube (GLuint textureID)
 /* Edit this function according to your assignment */
 void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int doV, int doP)
 {
+    GetMouseCoordinates(window) ;
     if(current_time - GameWinningTime > 5 && GameWon)
     {
         BlockIsFalling = false ;
@@ -940,6 +946,9 @@ glm::vec3 GetMouseCoordinates(GLFWwindow* window)
 {
     double CursorX,CursorY ;
     glfwGetCursorPos(window, &CursorX, &CursorY) ;
+    cout<<"Mouse is "<<CursorX<<" "<<CursorY<<endl ;
+    glm::vec3 b = GetBlockScreenCor() ;
+    cout<<"Block is at "<<b.x<<" "<<b.y<<endl ;
     return glm::vec3(CursorX,CursorY,0) ;
 }
 void SetHeliCam(GLFWwindow* window)
@@ -1122,6 +1131,17 @@ void BlockFall(void)
     auto &Block = Blocks[0] ;
     Block.location.z -= BlockFallingSpeed ;
     if(abs(Block.location.z) >= 2*CameraSphereRadius) Block.location.z = 2*CameraSphereRadius ;
+}
+// mat4 ToDouble()
+glm::vec3 GetBlockScreenCor(void)
+{
+    auto &Block = Blocks[0] ;
+    glm::mat4 model = RotateBlock(Block.direction,normalize(cross(Block.up,Block.direction)),Block.up) * glm::scale(Block.scale)     ;
+    model = glm::translate(Block.location)* model ;
+    glm::vec3 point = glm::vec3(model * glm::vec4(Block.location,1.0f)) ;
+    point = glm::project(point,Matrices.view,Matrices.projection,glm::vec4(0,0,ScreenWidth,ScreenHeight)) ;
+    point.x = ScreenWidth - point.x ;
+    return point;
 }
 /*********************
     FALL DETECTION
@@ -1450,12 +1470,10 @@ void initGL (GLFWwindow* window, int width, int height)
 
 int main (int argc, char** argv)
 {
-    int width = 600;
-    int height = 600;
     srand(glfwGetTime()) ;
-    GLFWwindow* window = initGLFW(width, height);
+    GLFWwindow* window = initGLFW(ScreenWidth, ScreenHeight);
     // initGLEW();
-    initGL (window, width, height);
+    initGL (window, ScreenWidth,ScreenHeight);
 
     last_update_time = glfwGetTime();
     /* Draw in loop */

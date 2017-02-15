@@ -98,6 +98,7 @@ deque< glm::vec3 > BlockPrevLocation ;
 bool FollowCamView = false ;
 bool HelliCamView = false ;
 glm::vec3 MousePrevPosition ;
+bool BlockCamView = false ;
 
 // Tiles
 float TileWidth = 2 ;
@@ -508,10 +509,10 @@ void keyboardChar (GLFWwindow* window, unsigned int key)
     case '.' :  MoveCameraHoz(-1) ; break ;
     case 'j' : MoveCameraRadius(-1) ; break ;
     case 'k' : MoveCameraRadius(1) ; break ;
-    case 't' : FollowCamView = false ; SetTopView() ; break ;
-    case 'y' : FollowCamView = false ;SetTowerView() ; break ;
-    case 'f' : FollowCamView = true ; break ;
-    case 'b' : SetBlockView() ; break ;
+    case 't' : FollowCamView = false ; BlockCamView = false ; SetTopView() ; break ;
+    case 'y' : FollowCamView = false ; BlockCamView = false ; SetTowerView() ; break ;
+    case 'f' : BlockCamView = false ; FollowCamView = true ; break ;
+    case 'b' : FollowCamView = false ; BlockCamView = true ; break ;
     default:
 	break;
     }
@@ -525,7 +526,7 @@ void mouseButton (GLFWwindow* window, int button, int action, int mods)
     case GLFW_MOUSE_BUTTON_LEFT:
 	   if (action == GLFW_PRESS)
        {
-           FollowCamView = false ;
+           FollowCamView = BlockCamView = false ;
            HelliCamView = true ;
            MousePrevPosition = GetMouseCoordinates(window) ;
 	    }
@@ -726,6 +727,7 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
     glm::mat4 MVP;	// MVP = Projection * View * Model
 
     if(FollowCamView) SetFollowCamView() ;
+    if(BlockCamView) SetBlockView() ;
     if(HelliCamView) SetHeliCam(window) ;
     VP = Matrices.projection * Matrices.view;
 
@@ -749,7 +751,7 @@ void draw (GLFWwindow* window, float x, float y, float w, float h, int doM, int 
     if(BlockIsFalling) BlockFall() ;
     else if(BlockRotatingH) MoveBlockH(BlockMoveDir) ;
     else if(BlockRotatingV) MoveBlockV(BlockMoveDir) ;
-    for(auto &it:Blocks)
+    if(!BlockCamView) for(auto &it:Blocks)
     {
         Matrices.model = RotateBlock(it.direction,normalize(cross(it.up,it.direction)),it.up) * glm::scale(it.scale)     ;
         // Matrices.model = RotateBlock(glm::vec3(0,0,-1),glm::vec3(-1,0,0),glm::vec3(0,1,0)) * glm::scale(it.scale)     ;
@@ -947,8 +949,8 @@ void SetHeliCam(GLFWwindow* window)
 void SetBlockView(void)
 {
     auto &Block = Blocks[0] ;
-    Camera.location = Block.location + glm::vec3(0,0,1) * FindCurrentHeight() ;
-    Camera.direction = glm::vec3(0,0,0) ;
+    Camera.location = Block.location + glm::vec3(0,0,1) * (FindCurrentHeight()) ;
+    Camera.direction = normalize(Block.location -  BlockPrevLocation.front() )   + Block.location ;
     Camera.up = normalize(glm::vec3(0,0,1) - (Camera.direction - Camera.location) * dot(glm::vec3(0,0,1),(Camera.direction - Camera.location))) ;
     UpdateCamera() ;
 }

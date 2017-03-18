@@ -1,5 +1,5 @@
 # About Game
-  ##### This is an Replica of miniclip's Bloxorz game made using opengl.
+##### This is an Replica of miniclip's Bloxorz game made using opengl.
 In this world, there is a movable cuboidal block. The goal of the player is to
 make it fall into a square hole. The world consists of square tiles which can
 be arranged in any manner.
@@ -62,3 +62,20 @@ observing it at an angle.
   away from the scene.
 
 # Controls
+
+* Left Arrow Key : Move Left
+* Right Arrow Key : Right Left
+* Up Arrow Key : Up Left
+* Down Arrow Key : Down Left
+* p : Pause Game
+* q : Quit Game
+* t : Top View
+* y : Tower View
+* f : Follow Cam View
+* b : Block View
+* Left Mouse Click to activate Helicopter Camera View
+* Scroll to zoom in and zoom out
+* n,m : To rotate camera vertically
+* '.' , ',' : To rotate camera horizontally
+* k : Zoom In
+* j : Zoom Out

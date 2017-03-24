@@ -1,5 +1,5 @@
 # About Game
-##### This is an Replica of miniclip's Bloxorz game made using opengl.
+##### This is a Replica of miniclip's Bloxorz game made using opengl.
 In this world, there is a movable cuboidal block. The goal of the player is to
 make it fall into a square hole. The world consists of square tiles which can
 be arranged in any manner.

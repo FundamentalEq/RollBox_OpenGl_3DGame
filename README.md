@@ -18,7 +18,7 @@ be arranged in any manner.
 * The block can only skip one row/column (one cell, in any direction) in case of jump.
 
 # Run Game
-* To Compliation : `./make`
+* To Compliation : `make`
 * To run game : `./rollbox`
 
 # Libraries Used & Installation
